@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import build_loon_rules
-from rulegrammar import CoverageIndex, parse_rule
+from validate_generated import manifest_entries, validate_generated_tree
 
 
 # The intended remote-rule order is the builder's RULESETS order — the single
@@ -27,9 +27,6 @@ GENERATED_RULE_DIR = Path(__file__).resolve().parents[1] / "rules" / "loon" / "g
 GENERATED_RAW_PREFIX = "https://raw.githubusercontent.com/Zhengzhongjie/loon-rules-personal/main/rules/loon/generated/"
 
 BUILTIN_POLICIES = {"DIRECT", "REJECT", "REJECT-TINYGIF", "REJECT-DICT", "REJECT-DROP"}
-
-# Host/IP-matching rule types whose value never legitimately contains whitespace.
-_NO_WHITESPACE_TYPES = {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-REGEX", "IP-CIDR", "IP-CIDR6", "IP-ASN"}
 
 HIGH_RISK_PLUGIN_MARKERS = {
     "BiliBili.ADBlock.plugin",
@@ -106,94 +103,15 @@ def parse_loon_config(text: str) -> LoonConfig:
     )
 
 
-def manifest_entries() -> list[tuple[str, str, Path]]:
-    manifest = GENERATED_RULE_DIR / "MANIFEST.csv"
-    entries: list[tuple[str, str, Path]] = []
-    for raw in manifest.read_text().splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        tag, policy, path, _count = [part.strip() for part in line.split(",", 3)]
-        entries.append((tag, policy, Path(path)))
-    return entries
-
-
-def rule_value_problems(rule) -> list[str]:
-    """Semantic value checks for a parsed rule (guards against leaked inline comments).
-
-    Domain/IP values never contain whitespace; USER-AGENT/PROCESS-NAME legitimately may, so
-    the whitespace check is scoped to host/IP-matching types. IP-ASN must be a bare AS number.
-    """
-    problems: list[str] = []
-    if rule.rule_type in _NO_WHITESPACE_TYPES and any(ch.isspace() for ch in rule.value):
-        problems.append("rule value has whitespace (inline comment?)")
-    if rule.rule_type == "IP-ASN" and not rule.value.isdigit():
-        problems.append("IP-ASN value must be a bare AS number")
-    return problems
-
-
-def validate_generated_rules(errors: list[str]) -> None:
-    entries = manifest_entries()
-    if [tag for tag, _policy, _path in entries] != REMOTE_RULE_ORDER:
-        errors.append("generated rule manifest order does not match expected remote-rule order")
-    expected_files = {Path(path).name for _tag, _policy, path in entries}
-    actual_files = {path.name for path in GENERATED_RULE_DIR.glob("*.list")}
-    stale_files = sorted(actual_files - expected_files)
-    if stale_files:
-        errors.append("stale generated rule files: " + ", ".join(stale_files))
-
-    index = CoverageIndex()
-    for tag, _policy, rel_path in entries:
-        path = Path(__file__).resolve().parents[1] / rel_path
-        if not path.exists():
-            errors.append(f"generated rule file missing: {rel_path}")
-            continue
-        local_seen: set[tuple[str, str]] = set()
-        for raw in active_lines(path.read_text().splitlines()):
-            rule = parse_rule(raw)
-            if rule is None:
-                errors.append(f"{rel_path}: invalid rule line: {raw}")
-                continue
-            errors.extend(f"{rel_path}: {msg}: {raw}" for msg in rule_value_problems(rule))
-            key = (rule.rule_type, rule.value)
-            if key in local_seen:
-                errors.append(f"{rel_path}: duplicate local rule: {raw}")
-            cross_tag = index.exact_tag(rule)
-            if cross_tag is not None:
-                errors.append(f"{rel_path}: duplicate cross-file rule also in {cross_tag}: {raw}")
-            covered = index.covered_by(rule)
-            if covered is not None and tag != "ChinaASN-Direct":
-                errors.append(f"{rel_path}: rule covered by earlier {covered}: {raw}")
-            local_seen.add(key)
-            index.add(rule, tag)
-
-
 REQUIRED_SECTIONS = ["General", "Proxy Group", "Remote Filter", "Proxy Chain", "Rule", "Remote Rule", "Plugin", "Mitm"]
 
+# Every non-builtin policy a ruleset routes to must exist as a policy group in the
+# config. Derived from RULESETS (first-appearance order) so retagging or adding a
+# ruleset updates the requirement in one place instead of a hand-typed mirror.
 REQUIRED_POLICY_GROUPS = [
-    "全局代理",
-    "广告分流",
-    "Adobe",
-    "AI",
-    "PayPal",
-    "金融加密",
-    "Seetong",
-    "Amazon",
-    "Apple",
-    "YouTube",
-    "Google",
-    "GitHub",
-    "开发协作",
-    "海外社交资讯",
-    "Microsoft",
-    "Meta",
-    "Telegram",
-    "TikTok",
-    "Bilibili",
-    "RedNote",
-    "抖音",
-    "Weibo",
-    "境外流媒体",
+    policy
+    for policy in dict.fromkeys(rs.policy for rs in build_loon_rules.RULESETS)
+    if policy not in BUILTIN_POLICIES
 ]
 
 
@@ -297,7 +215,7 @@ def main() -> int:
     args = parser.parse_args()
 
     cfg = parse_loon_config(args.config.read_text())
-    manifest_policies = {tag: policy for tag, policy, _path in manifest_entries()}
+    manifest_policies = {tag: policy for tag, policy, _file in manifest_entries(GENERATED_RULE_DIR)}
 
     errors: list[str] = []
     errors += check_required_sections(cfg)
@@ -308,7 +226,7 @@ def main() -> int:
     errors += check_remote_urls(cfg)
     errors += check_remote_policies(cfg)
     errors += check_remote_tag_policies(cfg, manifest_policies)
-    validate_generated_rules(errors)
+    errors += validate_generated_tree(GENERATED_RULE_DIR)
     errors += check_plugins(cfg)
 
     if errors:

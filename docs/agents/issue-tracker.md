@@ -17,7 +17,7 @@ Drive Linear through the Linear MCP server (`mcp__plugin_linear_linear__*`). Aut
 
 ## Secondary: GitHub
 
-Use the `gh` CLI for anything that lives next to the code. `gh` infers the repo from `git remote -v` when run inside the clone (`Zhengzhongjie/codex-loon-rules`).
+Use the `gh` CLI for anything that lives next to the code. `gh` infers the repo from `git remote -v` when run inside the clone (`Zhengzhongjie/loon-rules-personal`).
 
 - **Pull requests** live in GitHub. Read with `gh pr view <number> --comments` and `gh pr diff <number>`.
 - **Mirror an issue to GitHub** (when code work needs a repo-local anchor): `gh issue create --title "..." --body "..."` (heredoc for multi-line bodies). Cross-link it to the Linear identifier in the body.
