@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 from rulegrammar import CoverageIndex, Rule, parse_rule, render_rule
 
 
-USER_AGENT = "codex-loon-rules-builder/1.0"
+USER_AGENT = "loon-rules-personal-builder/1.0"
 RAW_BASE = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon"
 FETCH_TIMEOUT_SECONDS = 30
 FETCH_RETRIES = 3

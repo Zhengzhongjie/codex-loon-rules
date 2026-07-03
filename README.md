@@ -1,4 +1,4 @@
-# codex-loon-rules
+# loon-rules-personal
 
 Personal Loon routing notes, supplemental rule lists, and validation tooling.
 

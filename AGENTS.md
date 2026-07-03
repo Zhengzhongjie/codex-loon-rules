@@ -1,4 +1,4 @@
-# codex-loon-rules — Agent Instructions
+# loon-rules-personal — Agent Instructions
 
 Personal Loon routing notes, supplemental rule lists, and validation tooling. See `README.md` for the project map.
 
