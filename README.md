@@ -8,13 +8,19 @@ Personal Loon routing notes, supplemental rule lists, and validation tooling.
 - `docs/optimization-2026-05-13.md`: sanitized change summary for the current optimization pass.
 - `docs/security-posture.md`: public/private boundary and account-risk posture.
 - `rules/loon/generated/`: generated, deduplicated public Loon rule subscriptions.
-- `rules/loon/generated/MANIFEST.csv`: generated tag, policy, file, and rule-count manifest.
-- `tools/build_loon_rules.py`: rebuilds generated rules from reviewed upstream sources plus local supplements.
-- `tools/check_loon_rule_drift.py`: rebuilds generated rules in memory and reports upstream drift.
+- `rules/shadowrocket/generated/`: the same rule lists in the Shadowrocket dialect — identical matches, with IPv6 `IP-CIDR6` folded into Shadowrocket's dual-stack `IP-CIDR`.
+- `rules/<dialect>/generated/MANIFEST.csv`: generated tag, policy, file, and rule-count manifest per dialect.
+- `configs/shadowrocket/`: generated Shadowrocket config skeletons (`iphone.conf`, `mac.conf`) — full-shape `.conf` with `{{PLACEHOLDER}}` private values, filled during iCloud assembly.
+- `docs/shadowrocket-modules.md`: Loon plugin → Shadowrocket module map (installed in-app, not embedded in the `.conf`).
+- `tools/build_loon_rules.py`: compiles rules once from reviewed upstream sources plus local supplements, then renders every dialect tree.
+- `tools/build_shadowrocket_config.py`: renders the Shadowrocket config skeletons from the shared RULESETS catalogue plus a committed sanitized spec.
+- `tools/check_loon_rule_drift.py`: rebuilds every dialect's generated rules in memory and reports upstream drift.
 - `tools/validate_loon_config.py`: invariant checks for the local Loon configuration.
-- `tools/rulegrammar.py`: shared rule-line grammar (parse, render, suffix-coverage index) used by both the builder and the validator.
-- `tools/audit_public_artifacts.py`: checks that public repo files do not include obvious secrets.
-- `tests/`: pytest unit tests for the rule compiler (`test_compile_rules.py`), the shared grammar (`test_rulegrammar.py`), and the config validator (`test_validate_config.py`).
+- `tools/validate_shadowrocket_config.py`: dual-mode checks for the Shadowrocket config — committed skeletons (CI) or a filled private `.conf` (local).
+- `tools/validate_generated.py`: shared, dialect-neutral validator for a generated rule tree (manifest order, dedup, coverage); used by both config validators.
+- `tools/rulegrammar.py`: shared rule-line grammar (parse, render, per-dialect fold, suffix-coverage index) used by the builder and the validators.
+- `tools/audit_public_artifacts.py`: checks that public repo files do not include obvious secrets, with a placeholder-aware model for config skeletons.
+- `tests/`: pytest unit tests for the rule compiler, shared grammar, generated-tree validator, both config validators, the Shadowrocket config generator, and the audit.
 - `.github/workflows/loon-rule-drift.yml`: per-push offline unit tests plus the weekly/manual upstream drift check for generated public rule lists.
 
 Do not commit full Loon `.lcf` files, node subscriptions, certificates, passphrases, or MITM hostnames.
@@ -26,6 +32,7 @@ Run the validator against the target Loon config:
 ```sh
 python3 tools/validate_loon_config.py "/Users/alessiozheng/Library/Mobile Documents/iCloud~com~ruikq~decar/Documents/Configs/loon rules for iphone & ipad.lcf"
 python3 tools/validate_loon_config.py "/Users/alessiozheng/Library/Mobile Documents/iCloud~com~ruikq~decar/Documents/Configs/loon rules for mac.lcf"
+python3 tools/validate_shadowrocket_config.py   # CI mode: committed skeletons + Shadowrocket rule tree
 python3 tools/audit_public_artifacts.py .
 HTTP_PROXY=http://127.0.0.1:7222 HTTPS_PROXY=http://127.0.0.1:7222 NO_PROXY=localhost,127.0.0.1,::1 python3 tools/build_loon_rules.py --strict
 HTTP_PROXY=http://127.0.0.1:7222 HTTPS_PROXY=http://127.0.0.1:7222 NO_PROXY=localhost,127.0.0.1,::1 python3 tools/check_loon_rule_drift.py

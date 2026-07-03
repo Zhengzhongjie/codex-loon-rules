@@ -31,6 +31,9 @@ jobs:
       - name: Unit tests
         run: python3 -m pytest -q
 
+      - name: Validate Shadowrocket config skeletons
+        run: python3 tools/validate_shadowrocket_config.py
+
       - name: Audit public artifacts
         run: python3 tools/audit_public_artifacts.py .
 

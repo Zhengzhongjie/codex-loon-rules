@@ -17,8 +17,8 @@ def test_cross_file_exact_dedup_drops_later_duplicate():
 
     result = blr.compile_rules(rulesets, contents)
 
-    assert "DOMAIN,example.com" in result.files["a.list"]
-    assert "DOMAIN,example.com" not in result.files["b.list"]
+    assert blr.Rule("DOMAIN", "example.com") in result.compiled["a.list"]
+    assert blr.Rule("DOMAIN", "example.com") not in result.compiled["b.list"]
     assert result.stats.duplicates_dropped == 1
 
 
@@ -28,7 +28,7 @@ def test_within_file_exact_dedup():
 
     result = blr.compile_rules(rulesets, contents)
 
-    assert result.files["a.list"].count("DOMAIN,dup.com") == 1
+    assert result.compiled["a.list"].count(blr.Rule("DOMAIN", "dup.com")) == 1
     assert result.stats.duplicates_dropped == 1
 
 
@@ -44,7 +44,7 @@ def test_suffix_coverage_drops_later_covered_domain():
 
     result = blr.compile_rules(rulesets, contents)
 
-    assert "api.example.com" not in result.files["b.list"]
+    assert blr.Rule("DOMAIN", "api.example.com") not in result.compiled["b.list"]
     assert result.stats.covered_dropped == 1
 
 
@@ -61,7 +61,7 @@ def test_drop_if_covered_false_keeps_covered_rule():
 
     result = blr.compile_rules(rulesets, contents)
 
-    assert "DOMAIN,api.example.com" in result.files["b.list"]
+    assert blr.Rule("DOMAIN", "api.example.com") in result.compiled["b.list"]
     assert result.stats.covered_dropped == 0
 
 
@@ -71,7 +71,7 @@ def test_no_resolve_appends_to_ip_rules():
 
     result = blr.compile_rules(rulesets, contents)
 
-    assert "IP-CIDR,1.2.3.0/24,no-resolve" in result.files["a.list"]
+    assert blr.Rule("IP-CIDR", "1.2.3.0/24", ("no-resolve",)) in result.compiled["a.list"]
 
 
 def test_normalize_filters_keyword_unknown_and_comments():
@@ -90,11 +90,9 @@ def test_normalize_filters_keyword_unknown_and_comments():
     }
 
     result = blr.compile_rules(rulesets, contents)
-    body = result.files["a.list"]
+    rules = result.compiled["a.list"]
 
-    assert "DOMAIN,keep.com" in body
-    assert "tracker" not in body
-    assert "URL-REGEX" not in body
+    assert rules == [blr.Rule("DOMAIN", "keep.com")]
 
 
 def test_bad_json_prefix_source_surfaces_in_failures_not_raised():
@@ -112,24 +110,55 @@ def test_good_json_prefix_source_yields_ip_rules():
 
     result = blr.compile_rules(rulesets, contents)
 
-    assert "IP-CIDR,1.2.3.0/24,no-resolve" in result.files["a.list"]
+    assert blr.Rule("IP-CIDR", "1.2.3.0/24", ("no-resolve",)) in result.compiled["a.list"]
     assert result.failures == []
 
 
-def test_header_manifest_and_stats():
+def test_compile_stats_counts_generated_files():
     rulesets = [blr.RuleSet("a.list", "A", "POLA", sources=("urlA",), notes=("note one",))]
     contents = {"urlA": "DOMAIN,keep.com\n"}
 
     result = blr.compile_rules(rulesets, contents)
-    body = result.files["a.list"]
+
+    assert result.compiled["a.list"] == [blr.Rule("DOMAIN", "keep.com")]
+    assert result.stats.generated == 1
+
+
+def test_render_tree_emits_header_body_and_manifest():
+    rulesets = [blr.RuleSet("a.list", "A", "POLA", sources=("urlA",), notes=("note one",))]
+    contents = {"urlA": "DOMAIN,keep.com\n"}
+
+    files = blr.render_tree(blr.compile_rules(rulesets, contents).compiled, rulesets, blr.LOON_DIALECT)
+    body = files["a.list"]
 
     assert body.startswith("# A\n")
     assert "# Policy: POLA" in body
     assert "# note one" in body
-    manifest = result.files["MANIFEST.csv"]
+    assert "DOMAIN,keep.com" in body
+    manifest = files["MANIFEST.csv"]
     assert manifest.splitlines()[0] == "# Generated Loon rules manifest"
     assert "A,POLA,rules/loon/generated/a.list,1" in manifest
-    assert result.stats.generated == 1
+
+
+def test_shadowrocket_dialect_folds_ipv6_and_repaths_manifest():
+    rulesets = [blr.RuleSet("a.list", "A", "POLA", sources=("urlA",))]
+    contents = {"urlA": "IP-CIDR6,2001:db8::/32\nIP-CIDR,1.2.3.0/24\nDOMAIN,keep.com\n"}
+    compiled = blr.compile_rules(rulesets, contents).compiled
+
+    loon = blr.render_tree(compiled, rulesets, blr.LOON_DIALECT)["a.list"]
+    sr = blr.render_tree(compiled, rulesets, blr.SHADOWROCKET_DIALECT)["a.list"]
+
+    # Loon keeps IP-CIDR6; Shadowrocket folds it into dual-stack IP-CIDR.
+    assert "IP-CIDR6,2001:db8::/32" in loon
+    assert "IP-CIDR6" not in sr
+    assert "IP-CIDR,2001:db8::/32" in sr
+    # Non-IPv6 rows are untouched and row count stays in parity across dialects.
+    assert "IP-CIDR,1.2.3.0/24" in sr and "DOMAIN,keep.com" in sr
+    assert len(loon.splitlines()) == len(sr.splitlines())
+
+    manifest = blr.render_tree(compiled, rulesets, blr.SHADOWROCKET_DIALECT)["MANIFEST.csv"]
+    assert manifest.splitlines()[0] == "# Generated Shadowrocket rules manifest"
+    assert "A,POLA,rules/shadowrocket/generated/a.list,3" in manifest
 
 
 def test_write_result_replaces_artefacts(tmp_path):

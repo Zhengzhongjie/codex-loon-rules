@@ -91,3 +91,21 @@ def test_coverage_index_ignores_non_domain_types():
     index = rg.CoverageIndex()
     index.add(rg.Rule("DOMAIN-SUFFIX", "example.com", ()), "A")
     assert index.covered_by(rg.Rule("IP-CIDR", "1.2.3.0/24", ())) is None
+
+
+def test_fold_loon_is_identity():
+    v6 = rg.Rule("IP-CIDR6", "2001:db8::/32", ("no-resolve",))
+    assert rg.fold(v6, rg.LOON) == v6
+
+
+def test_fold_shadowrocket_rewrites_ipv6_type_only():
+    v6 = rg.Rule("IP-CIDR6", "2001:db8::/32", ("no-resolve",))
+    assert rg.fold(v6, rg.SHADOWROCKET) == rg.Rule("IP-CIDR", "2001:db8::/32", ("no-resolve",))
+
+
+def test_fold_shadowrocket_leaves_other_types_untouched():
+    for rule in (
+        rg.Rule("IP-CIDR", "1.2.3.0/24", ("no-resolve",)),
+        rg.Rule("DOMAIN-SUFFIX", "example.com", ()),
+    ):
+        assert rg.fold(rule, rg.SHADOWROCKET) == rule
