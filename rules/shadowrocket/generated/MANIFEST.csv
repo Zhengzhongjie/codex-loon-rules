@@ -1,13 +1,13 @@
 # Generated Shadowrocket rules manifest
 # Do not include proxy nodes, subscriptions, certificates, or secrets.
 
-Ads-Reject,广告分流,rules/shadowrocket/generated/00-Ads-Reject.list,2938
+Ads-Reject,广告分流,rules/shadowrocket/generated/00-Ads-Reject.list,2936
 LAN-Direct,DIRECT,rules/shadowrocket/generated/01-LAN-Direct.list,9
 AccountSafety-DIRECT,DIRECT,rules/shadowrocket/generated/02-AccountSafety-Direct.list,12
 Mainland-Services-Direct,DIRECT,rules/shadowrocket/generated/03-Mainland-Services-Direct.list,490
 Seetong-Local,Seetong,rules/shadowrocket/generated/04-Seetong.list,2
 PayPal-Stable,PayPal,rules/shadowrocket/generated/05-PayPal-Stable.list,247
-FinanceCrypto-Stable,金融加密,rules/shadowrocket/generated/06-FinanceCrypto-Stable.list,241
+FinanceCrypto-Stable,金融加密,rules/shadowrocket/generated/06-FinanceCrypto-Stable.list,243
 Adobe,Adobe,rules/shadowrocket/generated/07-Adobe.list,181
 AI,AI,rules/shadowrocket/generated/08-AI.list,127
 Apple,Apple,rules/shadowrocket/generated/09-Apple.list,119
@@ -28,4 +28,4 @@ Streaming,境外流媒体,rules/shadowrocket/generated/23-Streaming.list,1671
 Amazon,Amazon,rules/shadowrocket/generated/24-Amazon.list,187
 Talkatone,全局代理,rules/shadowrocket/generated/25-Talkatone.list,6
 ChinaASN-Direct,DIRECT,rules/shadowrocket/generated/26-ChinaASN-Direct.list,5075
-Ads-Reject-Heavy,广告分流,rules/shadowrocket/generated/27-Ads-Reject-Heavy.list,169442
+Ads-Reject-Heavy,广告分流,rules/shadowrocket/generated/27-Ads-Reject-Heavy.list,170144

@@ -118,6 +118,8 @@ RULESETS: list[RuleSet] = [
             "DOMAIN-SUFFIX,stripecdn.com",
             "DOMAIN-SUFFIX,binance.us",
             "DOMAIN-SUFFIX,oklink.com",
+            "DOMAIN-SUFFIX,safepal.com",
+            "DOMAIN-SUFFIX,safepal.io",
             "DOMAIN-SUFFIX,coinbase.com",
             "DOMAIN-SUFFIX,kraken.com",
             "DOMAIN-SUFFIX,wise.com",
@@ -361,11 +363,35 @@ def accept_rule(raw: str) -> Rule | None:
     return Rule(rule.rule_type, rule.value, modifiers)
 
 
+# Policy of the reject rulesets (00-Ads-Reject, 27-Ads-Reject-Heavy).
+REJECT_POLICY = "广告分流"
+
+# Service-critical domains that upstream ad/tracker lists wrongly include. Because rules are
+# first-match-wins and the reject lists sit before the service lists, an entry here is stripped
+# from every reject ruleset so the later service rule wins. Matches a domain and its subdomains.
+SERVICE_ALLOWLIST = frozenset(
+    {
+        "statsig.com",        # OpenAI/ChatGPT feature-flag + experimentation (08-AI); 00 REJECTed api.statsig.com
+        "statsigapi.net",     # statsig API host; 00 REJECTed it outright
+        "featureassets.org",  # OpenAI feature-assets host (08-AI)
+    }
+)
+
+
+def is_service_allowlisted(rule: Rule) -> bool:
+    """True if a domain rule targets a SERVICE_ALLOWLIST domain (or a subdomain of one)."""
+    if rule.rule_type not in ("DOMAIN", "DOMAIN-SUFFIX"):
+        return False
+    value = rule.value
+    return any(value == domain or value.endswith("." + domain) for domain in SERVICE_ALLOWLIST)
+
+
 @dataclass(frozen=True)
 class CompileStats:
     generated: int
     duplicates_dropped: int
     covered_dropped: int
+    allowlisted_dropped: int = 0
 
 
 @dataclass(frozen=True)
@@ -386,6 +412,7 @@ def compile_rules(rulesets: list[RuleSet], source_contents: dict[str, str]) -> C
     index = CoverageIndex()
     duplicate_count = 0
     covered_count = 0
+    allowlisted_count = 0
     failures: list[str] = []
     compiled: dict[str, list[Rule]] = {}
 
@@ -408,6 +435,9 @@ def compile_rules(rulesets: list[RuleSet], source_contents: dict[str, str]) -> C
             rule = accept_rule(raw)
             if rule is None:
                 continue
+            if ruleset.policy == REJECT_POLICY and is_service_allowlisted(rule):
+                allowlisted_count += 1
+                continue
             if ruleset.no_resolve and rule.rule_type.startswith("IP-") and "no-resolve" not in rule.modifiers:
                 rule = Rule(rule.rule_type, rule.value, rule.modifiers + ("no-resolve",))
             # exact_tag dedups within and across files alike (add() populates the index for
@@ -429,6 +459,7 @@ def compile_rules(rulesets: list[RuleSet], source_contents: dict[str, str]) -> C
             generated=len(rulesets),
             duplicates_dropped=duplicate_count,
             covered_dropped=covered_count,
+            allowlisted_dropped=allowlisted_count,
         ),
         failures=failures,
     )
@@ -483,6 +514,7 @@ def stats_lines(stats: CompileStats) -> list[str]:
         f"generated={stats.generated}",
         f"duplicates_dropped={stats.duplicates_dropped}",
         f"covered_later_rules_dropped={stats.covered_dropped}",
+        f"service_allowlisted_dropped={stats.allowlisted_dropped}",
     ]
 
 

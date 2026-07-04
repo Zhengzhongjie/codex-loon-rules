@@ -173,6 +173,13 @@ def test_write_result_replaces_artefacts(tmp_path):
 
 
 def test_stats_lines_format():
-    lines = blr.stats_lines(blr.CompileStats(generated=3, duplicates_dropped=2, covered_dropped=1))
+    lines = blr.stats_lines(
+        blr.CompileStats(generated=3, duplicates_dropped=2, covered_dropped=1, allowlisted_dropped=4)
+    )
 
-    assert lines == ["generated=3", "duplicates_dropped=2", "covered_later_rules_dropped=1"]
+    assert lines == [
+        "generated=3",
+        "duplicates_dropped=2",
+        "covered_later_rules_dropped=1",
+        "service_allowlisted_dropped=4",
+    ]
