@@ -4,3 +4,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Local agent tooling state (Claude Code / claude-flow / ruflo)
+.claude/
+.claude-flow/
+.swarm/
