@@ -24,7 +24,7 @@ def _sections(conf: str) -> dict[str, list[str]]:
 def test_canonical_sections_present_and_ordered():
     conf = sr.render_config(sr.DEVICES[0])
     headers = [ln.strip()[1:-1] for ln in conf.splitlines() if ln.startswith("[") and ln.strip().endswith("]")]
-    assert headers == ["General", "Proxy", "Proxy Group", "Rule", "MITM"]
+    assert headers == ["General", "Host", "Proxy", "Proxy Group", "Rule", "MITM"]
 
 
 def test_rule_section_derives_one_ruleset_line_each_plus_final():
@@ -61,6 +61,24 @@ def test_private_sections_are_all_placeholders():
 
     for device in sr.DEVICES:
         assert audit.private_section_leaks(sr.render_config(device)) == []
+
+
+def test_okx_family_pinned_to_encrypted_doh():
+    # OKX/OKLink/OKEX geo-steer by DNS; the system resolver hands back a dead 169.254.0.2 sinkhole
+    # for the AWS-China line, so the site won't open. Each must be pinned (apex + wildcard) to an
+    # encrypted DoH resolver — plain UDP would be spoofable on a hostile network.
+    host = _sections(sr.render_config(sr.DEVICES[0]))["Host"]
+    assert sr.CLEAN_DOH.startswith("https://"), "DNS pin must be DoH, not spoofable plain UDP"
+    for domain in ("okx.com", "oklink.com", "okex.com"):
+        assert f"{domain} = server:{sr.CLEAN_DOH}" in host
+        assert f"*.{domain} = server:{sr.CLEAN_DOH}" in host
+
+
+def test_host_pins_do_not_leak_beyond_the_finance_hosts():
+    # The pin is deliberately narrow so the tailnet's MagicDNS stays the default resolver for
+    # everything else (home-access machine names depend on it). Guard against scope creep.
+    host = _sections(sr.render_config(sr.DEVICES[0]))["Host"]
+    assert len(host) == 2 * len(sr.DOH_PINNED_HOSTS)
 
 
 def test_build_writes_both_devices(tmp_path):

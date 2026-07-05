@@ -95,6 +95,29 @@ def general_section() -> list[str]:
     ]
 
 
+# Domains whose DNS is geo-steered and whose default (system) resolver returns a dead sinkhole
+# instead of a working edge — pin them to an encrypted resolver so they reach the reachable line.
+# OKX/OKLink/OKEX: the system resolver (Tailscale MagicDNS upstream) answers www.okx.com with a
+# link-local 169.254.0.2 black hole (the AWS-China okpool line); Cloudflare DoH returns the working
+# global Cloudflare line. DoH (not plain UDP) so a hostile network can't spoof the answer back.
+DOH_PINNED_HOSTS: tuple[str, ...] = (
+    "okx.com",
+    "oklink.com",
+    "okex.com",
+)
+CLEAN_DOH = "https://1.1.1.1/dns-query"
+
+
+def host_section() -> list[str]:
+    # Scoped narrowly (apex + subdomains of a few finance hosts) so the tailnet's MagicDNS stays the
+    # default resolver for everything else — including home-access tailnet machine names.
+    lines = ["[Host]"]
+    for domain in DOH_PINNED_HOSTS:
+        lines.append(f"{domain} = server:{CLEAN_DOH}")
+        lines.append(f"*.{domain} = server:{CLEAN_DOH}")
+    return lines
+
+
 def proxy_group_section() -> list[str]:
     lines = ["[Proxy Group]"]
     lines.append(f"全局代理 = select,链式代理链路,{','.join(REGIONS)},DIRECT,url={TEST_URL}")
@@ -145,6 +168,7 @@ def render_config(device: Device) -> str:
     blocks = [
         header,
         general_section(),
+        host_section(),
         proxy_section(device),
         proxy_group_section(),
         rule_section(),
