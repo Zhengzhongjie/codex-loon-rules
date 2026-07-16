@@ -4,12 +4,13 @@
 Ads-Reject,广告分流,rules/loon/generated/00-Ads-Reject.list,2936
 LAN-Direct,DIRECT,rules/loon/generated/01-LAN-Direct.list,9
 AccountSafety-DIRECT,DIRECT,rules/loon/generated/02-AccountSafety-Direct.list,12
-Mainland-Services-Direct,DIRECT,rules/loon/generated/03-Mainland-Services-Direct.list,490
+Mainland-Services-Direct,DIRECT,rules/loon/generated/03-Mainland-Services-Direct.list,491
 Seetong-Local,Seetong,rules/loon/generated/04-Seetong.list,2
 PayPal-Stable,PayPal,rules/loon/generated/05-PayPal-Stable.list,247
 FinanceCrypto-Stable,金融加密,rules/loon/generated/06-FinanceCrypto-Stable.list,243
 Adobe,Adobe,rules/loon/generated/07-Adobe.list,181
-AI,AI,rules/loon/generated/08-AI.list,127
+Claude,Claude,rules/loon/generated/08-Claude.list,6
+AI,AI,rules/loon/generated/08-AI.list,121
 Apple,Apple,rules/loon/generated/09-Apple.list,119
 RedNote,RedNote,rules/loon/generated/10-RedNote.list,4
 Weibo,Weibo,rules/loon/generated/11-Weibo.list,3

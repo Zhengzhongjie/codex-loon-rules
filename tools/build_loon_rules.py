@@ -33,6 +33,21 @@ def blackmatrix(name: str) -> str:
     return f"{RAW_BASE}/{name}/{name}.list"
 
 
+CLAUDE_FIRST_PARTY_SUFFIXES: tuple[str, ...] = (
+    "anthropic.com",
+    "claude.ai",
+    "claude.com",
+    "claudeusercontent.com",
+)
+CLAUDE_EXACT_HOSTS: tuple[str, ...] = (
+    "cdn.usefathom.com",  # third-party analytics; reject rules may still block it
+    "servd-anthropic-website.b-cdn.net",
+)
+CLAUDE_BASELINE_RULES: tuple[str, ...] = tuple(
+    f"DOMAIN-SUFFIX,{domain}" for domain in CLAUDE_FIRST_PARTY_SUFFIXES
+) + tuple(f"DOMAIN,{host}" for host in CLAUDE_EXACT_HOSTS)
+
+
 @dataclass(frozen=True)
 class RuleSet:
     file: str
@@ -93,6 +108,8 @@ RULESETS: list[RuleSet] = [
         "Mainland-Services-Direct",
         "DIRECT",
         tuple(blackmatrix(name) for name in ("Baidu", "WeChat", "Tencent", "Alibaba", "NetEase")),
+        additions=("DOMAIN-SUFFIX,gaokao.cn",),
+        notes=("Keep the Gaokao service direct when migrating private inline rules.",),
     ),
     RuleSet(
         "04-Seetong.list",
@@ -137,10 +154,21 @@ RULESETS: list[RuleSet] = [
     ),
     RuleSet("07-Adobe.list", "Adobe", "Adobe", tuple(blackmatrix(name) for name in ("Adobe", "AdobeActivation"))),
     RuleSet(
+        "08-Claude.list",
+        "Claude",
+        "Claude",
+        tuple(blackmatrix(name) for name in ("Claude", "Anthropic")),
+        additions=CLAUDE_BASELINE_RULES,
+        notes=(
+            "Claude and Anthropic first-party domains use one stable, supported-region policy.",
+            "Fathom is third-party analytics and may still be preempted by the earlier reject layer.",
+        ),
+    ),
+    RuleSet(
         "08-AI.list",
         "AI",
         "AI",
-        tuple(blackmatrix(name) for name in ("OpenAI", "Claude", "Anthropic", "Gemini", "Copilot"))
+        tuple(blackmatrix(name) for name in ("OpenAI", "Gemini", "Copilot"))
         + ("https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/AI.list",),
         json_prefix_sources=("https://openai.com/chatgpt-voice.json",),
         additions=(
@@ -371,6 +399,8 @@ REJECT_POLICY = "广告分流"
 # from every reject ruleset so the later service rule wins. Matches a domain and its subdomains.
 SERVICE_ALLOWLIST = frozenset(
     {
+        *CLAUDE_FIRST_PARTY_SUFFIXES,
+        "servd-anthropic-website.b-cdn.net",
         "statsig.com",        # OpenAI/ChatGPT feature-flag + experimentation (08-AI); 00 REJECTed api.statsig.com
         "statsigapi.net",     # statsig API host; 00 REJECTed it outright
         "featureassets.org",  # OpenAI feature-assets host (08-AI)

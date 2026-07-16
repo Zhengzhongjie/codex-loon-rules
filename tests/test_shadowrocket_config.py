@@ -46,6 +46,14 @@ def test_every_rule_policy_resolves_to_a_group_or_builtin():
         assert policy in group_names or policy in BUILTIN_POLICIES, f"dangling policy: {policy}"
 
 
+def test_claude_group_uses_supported_stable_regions_only():
+    groups = _sections(sr.render_config(sr.DEVICES[0]))["Proxy Group"]
+    claude = next(line for line in groups if line.startswith("Claude = "))
+    members = {part.strip() for part in claude.split(",")[1:] if not part.startswith("url=")}
+    assert members == set(sr.CLAUDE_REGIONS)
+    assert not {"DIRECT", "链式代理链路", "香港节点", "澳门节点", "其他节点"} & members
+
+
 def test_device_delta_is_exactly_home_access_and_mitm_hostname():
     iphone = sr.render_config(sr.DEVICES[0]).splitlines()
     mac = sr.render_config(sr.DEVICES[1]).splitlines()

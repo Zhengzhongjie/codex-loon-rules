@@ -31,7 +31,7 @@ DIALECT_DIRS = [
     REPO_ROOT / "rules" / "shadowrocket" / "generated",
 ]
 REJECT_FILES = ("00-Ads-Reject.list", "27-Ads-Reject-Heavy.list")
-SERVICE_FILES = ("06-FinanceCrypto-Stable.list", "08-AI.list")
+SERVICE_FILES = ("06-FinanceCrypto-Stable.list", "08-Claude.list", "08-AI.list")
 
 # Service domains that reject lists legitimately shadow: pure telemetry/analytics
 # whose blocking does NOT break the service. Reviewed 2026-07-05.

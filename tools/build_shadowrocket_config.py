@@ -22,6 +22,10 @@ TEST_URL = "http://cp.cloudflare.com/generate_204"
 # Region order used inside every service group's member list (from the Loon global group).
 REGIONS = ["美国节点", "香港节点", "澳门节点", "台湾节点", "日本节点", "韩国节点", "狮城节点", "英国节点", "其他节点"]
 
+# Claude rejects unsupported or inconsistent region signals. Keep it on one explicitly supported
+# region and exclude DIRECT, Hong Kong, Macao, unknown regions, and multi-region chain selectors.
+CLAUDE_REGIONS = ["美国节点", "狮城节点", "日本节点", "台湾节点", "韩国节点", "英国节点"]
+
 # Region latency groups: node members are private, so each carries a {{…}} placeholder plus the
 # non-secret url-test parameters carried over from the Loon config.
 REGION_GROUPS = [
@@ -125,6 +129,7 @@ def proxy_group_section() -> list[str]:
         lines.append(f"{name} = {typ},{','.join(members)}")
     lines.append("广告分流 = select,REJECT,DIRECT")
     lines.append(f"大陆流量 = select,DIRECT,链式代理链路,REJECT,{','.join(REGIONS)},url={TEST_URL}")
+    lines.append(f"Claude = select,{','.join(CLAUDE_REGIONS)},url={TEST_URL}")
     for name in PROXY_FIRST:
         lines.append(service_group(name, direct_first=False))
     for name in DIRECT_FIRST:

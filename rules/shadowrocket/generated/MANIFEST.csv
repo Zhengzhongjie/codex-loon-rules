@@ -4,12 +4,13 @@
 Ads-Reject,广告分流,rules/shadowrocket/generated/00-Ads-Reject.list,2936
 LAN-Direct,DIRECT,rules/shadowrocket/generated/01-LAN-Direct.list,9
 AccountSafety-DIRECT,DIRECT,rules/shadowrocket/generated/02-AccountSafety-Direct.list,12
-Mainland-Services-Direct,DIRECT,rules/shadowrocket/generated/03-Mainland-Services-Direct.list,490
+Mainland-Services-Direct,DIRECT,rules/shadowrocket/generated/03-Mainland-Services-Direct.list,491
 Seetong-Local,Seetong,rules/shadowrocket/generated/04-Seetong.list,2
 PayPal-Stable,PayPal,rules/shadowrocket/generated/05-PayPal-Stable.list,247
 FinanceCrypto-Stable,金融加密,rules/shadowrocket/generated/06-FinanceCrypto-Stable.list,243
 Adobe,Adobe,rules/shadowrocket/generated/07-Adobe.list,181
-AI,AI,rules/shadowrocket/generated/08-AI.list,127
+Claude,Claude,rules/shadowrocket/generated/08-Claude.list,6
+AI,AI,rules/shadowrocket/generated/08-AI.list,121
 Apple,Apple,rules/shadowrocket/generated/09-Apple.list,119
 RedNote,RedNote,rules/shadowrocket/generated/10-RedNote.list,4
 Weibo,Weibo,rules/shadowrocket/generated/11-Weibo.list,3

@@ -68,14 +68,31 @@ def test_check_required_sections():
 
 
 def test_check_general_both_directions():
-    good = "skip-proxy =\nbypass-tun =\nip-mode = v4-only\nipv6-vif = off\nhijack-dns ="
+    good = "skip-proxy =\nbypass-tun =\nip-mode = v4-only\nipv6-vif = off\nhijack-dns = *:53"
     assert v.check_general(mk(general_text=good)) == []
     assert "missing General skip-proxy" in v.check_general(mk(general_text=""))
+
+
+def test_check_general_requires_explicit_all_udp_dns_capture():
+    base = "skip-proxy =\nbypass-tun =\nip-mode = v4-only\nipv6-vif = off\n"
+    assert any("exactly one hijack-dns" in e for e in v.check_general(mk(general_text=base)))
+    assert any("explicitly include *:53" in e for e in v.check_general(mk(general_text=base + "hijack-dns =\n")))
+    assert any(
+        "explicitly include *:53" in e
+        for e in v.check_general(mk(general_text=base + "hijack-dns = 8.8.8.8\n"))
+    )
 
 
 def test_check_rule_section():
     assert v.check_rule_section(mk(rule_lines=["FINAL,全局代理"])) == []
     assert v.check_rule_section(mk(rule_lines=["DOMAIN,x.com,AI"])) != []
+
+
+def test_check_rule_section_allows_private_device_ip_exception_only():
+    private = "IP-CIDR,198.18.0.1/32,Home-Orca-WG,no-resolve"
+    assert v.check_rule_section(mk(rule_lines=[private, "FINAL,全局代理"])) == []
+    assert v.check_rule_section(mk(rule_lines=["IP-CIDR,1.2.3.4/32,AI,no-resolve", "FINAL,全局代理"])) != []
+    assert v.check_rule_section(mk(rule_lines=["URL-REGEX,\\.log\\.,REJECT", "FINAL,全局代理"])) != []
 
 
 def test_check_policy_groups():

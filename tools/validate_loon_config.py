@@ -8,6 +8,7 @@ import argparse
 import re
 import sys
 from dataclasses import dataclass
+from ipaddress import ip_network
 from pathlib import Path
 
 import build_loon_rules
@@ -130,15 +131,43 @@ def check_general(cfg: LoonConfig) -> list[str]:
         errors.append("ip-mode should be v4-only while IPv6 is being tested off")
     if "ipv6-vif = off" not in general:
         errors.append("ipv6-vif should stay off during stability testing")
-    if "hijack-dns =" not in general:
-        errors.append("DNS hijack should be enabled for the fake-IP rule system")
+    hijack_values = re.findall(r"(?m)^\s*hijack-dns\s*=\s*([^#\r\n]*)", general)
+    if len(hijack_values) != 1:
+        errors.append("General must define exactly one hijack-dns setting")
+    elif "*:53" not in {token.strip() for token in hijack_values[0].split(",") if token.strip()}:
+        errors.append("hijack-dns should explicitly include *:53 for app UDP DNS capture")
     return errors
 
 
+def _is_device_local_ip_rule(line: str) -> bool:
+    parts = [part.strip() for part in line.split(",")]
+    if len(parts) not in (3, 4) or parts[0].upper() not in {"IP-CIDR", "IP-CIDR6"}:
+        return False
+    if len(parts) == 4 and parts[3].lower() != "no-resolve":
+        return False
+    try:
+        ip_network(parts[1], strict=False)
+    except ValueError:
+        return False
+    # Generated service rules own managed policies. Inline IP rules are reserved for a device-only
+    # proxy target that cannot be published (for example, a private home-access tunnel).
+    managed_policies = set(REQUIRED_POLICY_GROUPS) | BUILTIN_POLICIES
+    return parts[2] not in managed_policies
+
+
 def check_rule_section(cfg: LoonConfig) -> list[str]:
-    if cfg.rule_lines != ["FINAL,全局代理"]:
-        return ["[Rule] should contain only FINAL; service rules belong in generated remote subscriptions"]
-    return []
+    errors: list[str] = []
+    if not cfg.rule_lines or cfg.rule_lines[-1] != "FINAL,全局代理" or cfg.rule_lines.count("FINAL,全局代理") != 1:
+        errors.append("[Rule] must end with exactly one FINAL,全局代理")
+    unexpected = [
+        line for line in cfg.rule_lines if line != "FINAL,全局代理" and not _is_device_local_ip_rule(line)
+    ]
+    if unexpected:
+        errors.append(
+            "[Rule] may contain only device-local IP-CIDR exceptions before FINAL; "
+            "service and regex rules belong in generated subscriptions"
+        )
+    return errors
 
 
 def check_policy_groups(cfg: LoonConfig) -> list[str]:
