@@ -32,6 +32,27 @@ Unsafe to publish:
 - Subscription URLs or URLs with token-like query parameters.
 - Certificates, passphrases, private keys, cookies, or account identifiers.
 
+## Leak defense: audit the index, gate the commit
+
+`tools/audit_public_artifacts.py` scans the **git index** (tracked ∪ staged — exactly
+what the next commit publishes) by default, reading blob content from the index rather
+than the working tree. Untracked local files (real-config backups under
+`.backups-loon-lcf/`, tool logs) are deliberately out of scope: they cannot enter a
+commit, and flagging them trains people to ignore failures. `--all` restores the
+whole-disk sweep for ad-hoc use.
+
+The audit runs at two points, fail-closed at both:
+
+1. **Locally, before every commit** — `githooks/pre-commit` (enable once per clone with
+   `git config core.hooksPath githooks`). This is the only gate that fires *before*
+   content becomes public; CI runs after push, when retraction is already ineffective.
+2. **In CI** (`loon-rule-drift.yml`) — the backstop for clones that skipped the hook
+   setup or committed with `--no-verify`.
+
+Real-config backups (`.backups-loon-lcf/*.lcf`) are on-disk rollback snapshots that
+carry real nodes/certs/MITM values. They are gitignored and must never be staged; the
+index audit is the enforcement if the ignore rule is ever bypassed.
+
 ## Local Loon policy
 
 Use the generated rules in `rules/loon/generated/` as the subscription source.

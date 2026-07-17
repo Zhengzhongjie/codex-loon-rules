@@ -25,6 +25,17 @@ Personal Loon routing notes, supplemental rule lists, and validation tooling.
 
 Do not commit full Loon `.lcf` files, node subscriptions, certificates, passphrases, or MITM hostnames.
 
+## One-time clone setup
+
+Enable the fail-closed pre-commit leak gate (audits the git index before every commit):
+
+```sh
+git config core.hooksPath githooks
+```
+
+`tools/audit_public_artifacts.py` scans tracked + staged content by default; pass
+`--all` for a whole-disk sweep. See `docs/security-posture.md` → "Leak defense".
+
 ## Validation
 
 Run the validator against the target Loon config:

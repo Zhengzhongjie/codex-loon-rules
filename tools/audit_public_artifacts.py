@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -91,21 +92,78 @@ def should_scan(path: Path) -> bool:
     return path.suffix.lower() not in SKIP_SUFFIXES
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("root", nargs="?", type=Path, default=Path("."))
-    args = parser.parse_args()
+def scan_text(rel_path: str, text: str) -> list[str]:
+    problems = [f"{rel_path}: contains {label}" for label, pattern in SECRET_PATTERNS if pattern.search(text)]
+    problems.extend(f"{rel_path}: {problem}" for problem in private_section_leaks(text))
+    return problems
 
+
+# The default scan set is the git index (tracked ∪ staged): exactly what the next
+# commit publishes. Reading blob content from the index (`git show :<path>`) rather
+# than the working tree means the audited bytes are the committed bytes (no
+# check-then-commit race) and untracked local files (backups, tool logs) cannot
+# produce noise that trains people to ignore failures. `--all` keeps the old
+# whole-tree disk scan for ad-hoc sweeps.
+def index_paths(root: Path) -> list[str]:
+    out = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--cached", "-z"],
+        capture_output=True,
+        check=True,
+    )
+    return [p.decode() for p in out.stdout.split(b"\0") if p]
+
+
+def index_text(root: Path, rel_path: str) -> str | None:
+    """Blob content for rel_path as staged in the index, or None for binary content."""
+    out = subprocess.run(
+        ["git", "-C", str(root), "show", f":{rel_path}"],
+        capture_output=True,
+        check=True,
+    )
+    try:
+        return out.stdout.decode()
+    except UnicodeDecodeError:
+        return None
+
+
+def audit_index(root: Path) -> list[str]:
     errors: list[str] = []
-    for path in sorted(p for p in args.root.rglob("*") if p.is_file() and should_scan(p)):
+    for rel_path in sorted(index_paths(root)):
+        if not should_scan(Path(rel_path)):
+            continue
+        text = index_text(root, rel_path)
+        if text is not None:
+            errors.extend(scan_text(rel_path, text))
+    return errors
+
+
+def audit_tree(root: Path) -> list[str]:
+    errors: list[str] = []
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and should_scan(p)):
         try:
             text = path.read_text()
         except UnicodeDecodeError:
             continue
-        for label, pattern in SECRET_PATTERNS:
-            if pattern.search(text):
-                errors.append(f"{path}: contains {label}")
-        errors.extend(f"{path}: {problem}" for problem in private_section_leaks(text))
+        errors.extend(scan_text(str(path), text))
+    return errors
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", nargs="?", type=Path, default=Path("."))
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="scan every file on disk instead of the git index (noisy: includes untracked local files)",
+    )
+    args = parser.parse_args(argv)
+
+    try:
+        errors = audit_tree(args.root) if args.all else audit_index(args.root)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        # Fail closed: if git is unavailable the audit cannot vouch for the index.
+        print(f"FAIL: cannot read git index under {args.root}: {exc}", file=sys.stderr)
+        return 2
 
     if errors:
         for error in errors:

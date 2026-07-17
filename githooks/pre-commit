@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fail-closed leak gate: audit the git index (exactly what this commit publishes)
+# before it becomes history. Bypassing requires an explicit `git commit --no-verify`.
+exec python3 tools/audit_public_artifacts.py .

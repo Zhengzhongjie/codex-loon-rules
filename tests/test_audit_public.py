@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
+import subprocess
+
+import pytest
+
 import audit_public_artifacts as audit
+
+# Fake secrets are built by concatenation so this (tracked) test file never
+# contains a literal that the audit itself would flag.
+SCHEME = "://"
+PEM = "-" * 5
+FAKE_KEY = f"{PEM}BEGIN EC PRIVATE KEY{PEM}\nAAAA\n{PEM}END EC PRIVATE KEY{PEM}"
+FAKE_CERT = f"{PEM}BEGIN CERTIFICATE{PEM}\nAAAA\n{PEM}END CERTIFICATE{PEM}"
 
 
 def test_placeholder_private_sections_pass():
@@ -44,3 +55,92 @@ def test_public_sections_are_ignored():
     # A real value in [Proxy Group] (public wiring) is not a private-section leak.
     conf = "[Proxy Group]\nAI = select,链式代理链路,DIRECT\n"
     assert audit.private_section_leaks(conf) == []
+
+
+# ---- SECRET_PATTERNS, one test per pattern ----
+
+
+def test_pattern_private_key():
+    assert any("private key" in p for p in audit.scan_text("f", FAKE_KEY))
+
+
+def test_pattern_certificate():
+    assert any("certificate" in p for p in audit.scan_text("f", FAKE_CERT))
+
+
+@pytest.mark.parametrize(
+    "scheme", ["ss", "ssr", "vmess", "vless", "trojan", "hysteria", "hysteria2", "tuic", "VMESS"]
+)
+def test_pattern_proxy_uri(scheme):
+    assert audit.scan_text("f", f"node: {scheme}{SCHEME}eyJhbGci@host:443")
+
+
+def test_pattern_proxy_uri_requires_word_boundary():
+    # An https URL must not be mistaken for a proxy scheme whose name it merely ends with.
+    assert audit.scan_text("f", f"https{SCHEME}example.com") == []
+
+
+@pytest.mark.parametrize(
+    "param", ["token", "key", "api_key", "access_token", "auth", "password", "passwd", "secret"]
+)
+def test_pattern_token_query_parameter(param):
+    assert audit.scan_text("f", f"https{SCHEME}example.com/sub?{param}=abc123")
+
+
+def test_clean_text_has_no_findings():
+    assert audit.scan_text("f", "DOMAIN-SUFFIX,example.com\nIP-CIDR,10.0.0.0/8\n") == []
+
+
+# ---- index-mode scanning: the audit vouches for tracked ∪ staged, nothing else ----
+
+
+def _git(repo, *argv):
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *argv],
+        check=True,
+        capture_output=True,
+    )
+
+
+@pytest.fixture()
+def repo(tmp_path):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "clean.list").write_text("DOMAIN-SUFFIX,example.com\n")
+    _git(tmp_path, "add", "clean.list")
+    _git(tmp_path, "commit", "-qm", "init")
+    return tmp_path
+
+
+def test_index_scan_passes_on_clean_repo(repo, capsys):
+    assert audit.main([str(repo)]) == 0
+    assert "OK" in capsys.readouterr().out
+
+
+def test_untracked_secret_is_not_noise(repo):
+    # An untracked local file (backup, log) never enters a commit — index mode must ignore it.
+    (repo / "backup.lcf").write_text(FAKE_KEY)
+    assert audit.main([str(repo)]) == 0
+
+
+def test_staged_secret_fails(repo, capsys):
+    (repo / "leak.conf").write_text(FAKE_KEY)
+    _git(repo, "add", "leak.conf")
+    assert audit.main([str(repo)]) == 1
+    assert "leak.conf" in capsys.readouterr().err
+
+
+def test_staged_content_is_audited_not_worktree(repo):
+    # The audited bytes are the index blob: cleaning the worktree copy after staging must not hide the leak.
+    (repo / "leak.conf").write_text(FAKE_KEY)
+    _git(repo, "add", "leak.conf")
+    (repo / "leak.conf").write_text("clean now\n")
+    assert audit.main([str(repo)]) == 1
+
+
+def test_all_flag_scans_untracked_files(repo):
+    (repo / "backup.lcf").write_text(FAKE_KEY)
+    assert audit.main([str(repo), "--all"]) == 1
+
+
+def test_non_git_dir_fails_closed(tmp_path):
+    assert audit.main([str(tmp_path / "not-a-repo")]) == 2
