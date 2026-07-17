@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import build_loon_rules as blr
 
 
@@ -95,13 +97,31 @@ def test_normalize_filters_keyword_unknown_and_comments():
     assert rules == [blr.Rule("DOMAIN", "keep.com")]
 
 
-def test_bad_json_prefix_source_surfaces_in_failures_not_raised():
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "not json",
+        "{}",
+        '{"prefixes": {}}',
+        '{"prefixes": [null]}',
+        "[]",
+    ],
+    ids=[
+        "malformed-json",
+        "missing-prefixes",
+        "prefixes-not-list",
+        "prefix-entry-not-object",
+        "top-level-not-object",
+    ],
+)
+def test_bad_json_prefix_source_surfaces_in_failures_not_raised(raw):
     rulesets = [blr.RuleSet("a.list", "A", "POLA", json_prefix_sources=("jsonU",))]
-    contents = {"jsonU": "not json"}
+    contents = {"jsonU": raw}
 
     result = blr.compile_rules(rulesets, contents)
 
     assert any("jsonU" in f and "JSON_PARSE" in f for f in result.failures)
+    assert result.compiled["a.list"] == []
 
 
 def test_good_json_prefix_source_yields_ip_rules():

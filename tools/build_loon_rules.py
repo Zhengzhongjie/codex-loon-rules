@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -27,6 +28,7 @@ FETCH_RETRY_DELAY_SECONDS = 1.5
 FETCH_WORKERS = 4
 FETCH_ERRORS = (HTTPError, URLError, TimeoutError, OSError, IncompleteRead)
 SYSTEM_CURL = Path("/usr/bin/curl")
+UPSTREAM_CACHE_DIR = Path(".cache/upstream")
 
 
 def blackmatrix(name: str) -> str:
@@ -260,17 +262,91 @@ RULESETS: list[RuleSet] = [
 ]
 
 
-def fetch(url: str) -> str:
-    req = Request(url, headers={"User-Agent": USER_AGENT})
+def _fetch_cache_paths(url: str, cache_dir: Path) -> tuple[Path, Path]:
+    cache_key = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return cache_dir / f"{cache_key}.json", cache_dir / f"{cache_key}.body"
+
+
+def _load_fetch_cache(url: str, cache_dir: Path) -> tuple[dict[str, str | None], bytes | None]:
+    metadata_path, body_path = _fetch_cache_paths(url, cache_dir)
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        body = body_path.read_bytes()
+    except (OSError, json.JSONDecodeError):
+        return {}, None
+    if not isinstance(metadata, dict):
+        return {}, None
+    return {
+        "etag": metadata.get("etag") if isinstance(metadata.get("etag"), str) else None,
+        "last_modified": (
+            metadata.get("last_modified") if isinstance(metadata.get("last_modified"), str) else None
+        ),
+    }, body
+
+
+def _write_fetch_cache(url: str, cache_dir: Path, body: bytes, etag: str | None, last_modified: str | None) -> None:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    metadata_path, body_path = _fetch_cache_paths(url, cache_dir)
+    body_path.write_bytes(body)
+    metadata_path.write_text(
+        json.dumps({"etag": etag, "last_modified": last_modified}, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _response_status(response: object) -> int | None:
+    status = getattr(response, "status", None)
+    if status is not None:
+        return int(status)
+    getcode = getattr(response, "getcode", None)
+    return int(getcode()) if getcode is not None else None
+
+
+def _response_header(response: object, name: str) -> str | None:
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return None
+    value = headers.get(name)
+    return value if isinstance(value, str) else None
+
+
+def fetch(url: str, *, opener=None, cache_dir: Path | None = None) -> str:
+    cache_dir = UPSTREAM_CACHE_DIR if cache_dir is None else cache_dir
+    opener = urlopen if opener is None else opener
+    metadata, cached_body = _load_fetch_cache(url, cache_dir)
+    headers = {"User-Agent": USER_AGENT}
+    if metadata.get("etag"):
+        headers["If-None-Match"] = metadata["etag"]
+    if metadata.get("last_modified"):
+        headers["If-Modified-Since"] = metadata["last_modified"]
+    req = Request(url, headers=headers)
     last_error: Exception | None = None
     for attempt in range(1, FETCH_RETRIES + 1):
         try:
-            with urlopen(req, timeout=FETCH_TIMEOUT_SECONDS) as response:
-                return response.read().decode("utf-8", errors="replace")
+            with opener(req, timeout=FETCH_TIMEOUT_SECONDS) as response:
+                status = _response_status(response)
+                if status == 304:
+                    if cached_body is None:
+                        raise URLError("received 304 without a cached response body")
+                    return cached_body.decode("utf-8", errors="replace")
+                body = response.read()
+                if status == 200:
+                    _write_fetch_cache(
+                        url,
+                        cache_dir,
+                        body,
+                        _response_header(response, "ETag"),
+                        _response_header(response, "Last-Modified"),
+                    )
+                return body.decode("utf-8", errors="replace")
         except FETCH_ERRORS as exc:
+            if isinstance(exc, HTTPError) and exc.code == 304 and cached_body is not None:
+                return cached_body.decode("utf-8", errors="replace")
             last_error = exc
             if SYSTEM_CURL.exists() and "CERTIFICATE_VERIFY_FAILED" in str(exc):
-                return fetch_with_system_curl(url)
+                body = fetch_with_system_curl(url)
+                _write_fetch_cache(url, cache_dir, body.encode("utf-8"), None, None)
+                return body
             if attempt == FETCH_RETRIES:
                 break
             time.sleep(FETCH_RETRY_DELAY_SECONDS * attempt)
@@ -338,6 +414,9 @@ def json_prefix_rules(raw: str, source: str) -> list[str]:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(f"invalid JSON: {exc}") from exc
+
+    if not isinstance(data, dict):
+        raise ValueError("top-level JSON value is not an object")
 
     prefixes = data.get("prefixes")
     if not isinstance(prefixes, list):
