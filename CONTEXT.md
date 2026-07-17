@@ -82,6 +82,12 @@ The audit's leak model treats a non-placeholder real value inside a private sect
 (see [[docs/adr/0004]]).
 _Avoid_: variable, stub, token (bare).
 
+**Real-config backup**:
+An on-disk snapshot of a real private config (`.backups-loon-lcf/*.lcf`) kept for rollback only.
+It carries real nodes/certs/MITM values, so it must never enter git — it is the opposite of a
+sanitized artifact. Enforced by `.gitignore` and the index-scanning leak audit.
+_Avoid_: backup (bare — ambiguous with generated-artifact copies), archive.
+
 **Device delta**:
 The small, explicitly enumerated set of entries by which the mac variant of a config legitimately
 differs from the iphone & ipad variant (home-access node, iPhone-only enhancement bundle, MITM

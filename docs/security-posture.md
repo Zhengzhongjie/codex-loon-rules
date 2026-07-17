@@ -51,3 +51,34 @@ High-level generated order:
 
 The config should not mix these generated subscriptions with the original
 upstream subscriptions, because that reintroduces duplicate and shadowed rules.
+
+## www.okx.com resolves dead on mainland DNS (not a gateway compromise)
+
+`www.okx.com` resolves to the dead link-local `169.254.0.2` when queried through
+the home gateway (`192.168.1.1`) and several mainland recursive resolvers
+(Tencent `119.29.29.29`, Baidu `180.76.76.76`). The answer is a CNAME to
+`awscn.okpool.top`, whose authoritative record is `169.254.0.2` everywhere —
+AliDNS, 114DNS, and Cloudflare all return the same dead address for it, so that
+sinkhole record is set at the `okpool.top` zone, not injected locally.
+
+This is **not** a gateway compromise. A blast-radius scan (crypto exchanges,
+wallets, banks, mining pools, common sites) found `www.okx.com` to be the *only*
+name returning the dead address; every other domain resolved to real IPs on the
+gateway, differing from a clean resolver by nothing more than normal CDN/geo
+variance. AliDNS (`223.5.5.5`/`223.6.6.6`) and 114DNS (`114.114.114.114`) return
+the real Cloudflare answer for the same name. The split — some mainland resolvers
+dead, others live — is OKX's own geo-scoped authoritative DNS (a mainland
+geo-block after its China-market exit); the gateway merely forwards to a resolver
+that honors it.
+
+The fix is resolver choice, not gateway cleanup: resolve through AliDNS at the
+tailnet layer (see [[docs/adr/0006]]). Notes:
+
+- No router audit or reflash is warranted on this evidence. The gateway is not
+  rewriting exchange/bank domains to attacker infrastructure.
+- The bypass protects only devices on the tailnet's clean DNS. Any device
+  resolving through a mainland upstream (guests, a phone with Tailscale off) will
+  still get the dead answer for `www.okx.com`.
+- Clean DNS opens the page but does not defeat the geo-block for login/trading —
+  that still needs a non-mainland proxy exit (Loon), which is the routing half,
+  separate from the DNS half.

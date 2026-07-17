@@ -9,3 +9,6 @@ __pycache__/
 .claude/
 .claude-flow/
 .swarm/
+
+# Real-config backups (contain real nodes/secrets) — never commit
+.backups-loon-lcf/
