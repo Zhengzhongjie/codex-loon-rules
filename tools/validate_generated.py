@@ -72,10 +72,18 @@ def validate_generated_tree(generated_dir: Path) -> list[str]:
             errors.append(f"generated rule file missing: {filename}")
             continue
         local_seen: set[tuple[str, str]] = set()
-        for raw in active_lines(path.read_text()):
+        lines = active_lines(path.read_text())
+        if not lines:
+            # The builder never emits a rule list without rules — an empty file means a
+            # truncated or corrupted artifact and must not validate.
+            errors.append(f"{filename}: rule file has no active rules")
+        for raw in lines:
             rule = parse_rule(raw)
             if rule is None:
                 errors.append(f"{filename}: invalid rule line: {raw}")
+                continue
+            if rule.rule_type not in build_loon_rules.ALLOWED_RULE_TYPES:
+                errors.append(f"{filename}: unknown rule type {rule.rule_type}: {raw}")
                 continue
             errors.extend(f"{filename}: {msg}: {raw}" for msg in rule_value_problems(rule))
             key = (rule.rule_type, rule.value)
