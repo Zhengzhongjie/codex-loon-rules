@@ -144,3 +144,31 @@ def test_all_flag_scans_untracked_files(repo):
 
 def test_non_git_dir_fails_closed(tmp_path):
     assert audit.main([str(tmp_path / "not-a-repo")]) == 2
+
+
+# ---- secret-material file types: flagged by name, even when content can't be scanned ----
+
+
+@pytest.mark.parametrize("suffix", [".p12", ".pfx", ".der", ".key", ".keystore", ".mobileconfig", ".ovpn"])
+def test_secret_material_suffix_flagged(suffix):
+    assert audit.secret_material_problem(f"certs/ca{suffix}") is not None
+
+
+def test_ordinary_suffix_not_flagged():
+    assert audit.secret_material_problem("rules/loon/generated/08-AI.list") is None
+
+
+def test_staged_binary_ca_bundle_fails(repo, capsys):
+    # A DER-encoded CA bundle is binary (would UnicodeDecodeError → skipped by content scan),
+    # but its file type alone is a leak and must fail the audit by name.
+    (repo / "ca.der").write_bytes(b"\x30\x82\x01\x0a\x00\xff\xfe")
+    _git(repo, "add", "ca.der")
+    assert audit.main([str(repo)]) == 1
+    assert "ca.der" in capsys.readouterr().err
+
+
+def test_staged_p12_with_image_suffix_still_text_clean(repo):
+    # Guard against over-reach: a normal .png stays out of scope (name check is suffix-scoped).
+    (repo / "logo.png").write_bytes(b"\x89PNG\r\n")
+    _git(repo, "add", "logo.png")
+    assert audit.main([str(repo)]) == 0

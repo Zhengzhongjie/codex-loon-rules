@@ -84,12 +84,38 @@ SKIP_SUFFIXES = {
 }
 
 
+# Secret-bearing file types are a leak by *existence*, independent of content: a
+# binary CA bundle (.p12/.pfx/.der) or private key store cannot be text-scanned
+# (it UnicodeDecodeErrors and would otherwise be skipped silently), and no
+# legitimate public artifact in this repo is one of these. Flag them by name so
+# a committed cert/key/profile fails the audit even though its bytes never decode.
+SECRET_MATERIAL_SUFFIXES = {
+    ".p12",
+    ".pfx",
+    ".der",
+    ".key",
+    ".keystore",
+    ".jks",
+    ".mobileconfig",
+    ".ovpn",
+    ".p8",
+    ".pkcs12",
+}
+
+
 def should_scan(path: Path) -> bool:
     if ".git" in path.parts or "__pycache__" in path.parts:
         return False
     if path.name == ".DS_Store":
         return False
     return path.suffix.lower() not in SKIP_SUFFIXES
+
+
+def secret_material_problem(rel_path: str) -> str | None:
+    """Flag a path whose file type carries key/cert material regardless of content."""
+    if Path(rel_path).suffix.lower() in SECRET_MATERIAL_SUFFIXES:
+        return f"{rel_path}: secret-material file type must not be committed"
+    return None
 
 
 def scan_text(rel_path: str, text: str) -> list[str]:
@@ -129,6 +155,13 @@ def index_text(root: Path, rel_path: str) -> str | None:
 def audit_index(root: Path) -> list[str]:
     errors: list[str] = []
     for rel_path in sorted(index_paths(root)):
+        if ".git" in Path(rel_path).parts:
+            continue
+        # Name-based check first: it must fire even for suffixes should_scan skips
+        # and for blobs whose bytes never decode to text.
+        material = secret_material_problem(rel_path)
+        if material:
+            errors.append(material)
         if not should_scan(Path(rel_path)):
             continue
         text = index_text(root, rel_path)
@@ -139,7 +172,14 @@ def audit_index(root: Path) -> list[str]:
 
 def audit_tree(root: Path) -> list[str]:
     errors: list[str] = []
-    for path in sorted(p for p in root.rglob("*") if p.is_file() and should_scan(p)):
+    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+        if ".git" in path.parts or "__pycache__" in path.parts:
+            continue
+        material = secret_material_problem(str(path))
+        if material:
+            errors.append(material)
+        if not should_scan(path):
+            continue
         try:
             text = path.read_text()
         except UnicodeDecodeError:

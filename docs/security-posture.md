@@ -53,6 +53,30 @@ Real-config backups (`.backups-loon-lcf/*.lcf`) are on-disk rollback snapshots t
 carry real nodes/certs/MITM values. They are gitignored and must never be staged; the
 index audit is the enforcement if the ignore rule is ever bypassed.
 
+### What the audit catches — and what it deliberately doesn't
+
+The audit is a high-confidence backstop, not a complete DLP. It flags:
+
+- PEM private keys and certificates, and proxy-scheme URIs (the `ss`, `vmess`,
+  `trojan`, `hysteria`, `tuic` schemes) anywhere in a text file;
+- subscription URLs whose token rides in a **query parameter** (a `token=`, `key=`,
+  or `secret=` field);
+- real (non-placeholder) values inside private config sections (`[Proxy]`,
+  `[Remote Proxy]`, `[Mitm]`) — the sections a Shadowrocket skeleton actually commits;
+- secret-material **file types** by name (`.p12`, `.pfx`, `.der`, `.key`,
+  `.mobileconfig`, `.ovpn`, …), which no legitimate public artifact here ever is.
+
+It does **not** catch, by design (a heuristic broad enough to catch these would
+false-positive on the many legitimate GitHub-raw URLs in the committed docs, training
+people to `--no-verify`):
+
+- subscription tokens embedded in a URL **path** (`https://host/link/<token>`);
+- secrets inside an opaque binary blob (a subscription QR `.png`).
+
+Those two remain the human's and `.gitignore`'s responsibility, backed by the
+"Unsafe to publish" list above. Never paste a raw subscription URL into a committed
+file regardless of its token position.
+
 ## Local Loon policy
 
 Use the generated rules in `rules/loon/generated/` as the subscription source.
