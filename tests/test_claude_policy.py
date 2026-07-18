@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DIALECT_DIRS = [
     REPO_ROOT / "rules" / "loon" / "generated",
     REPO_ROOT / "rules" / "shadowrocket" / "generated",
+    REPO_ROOT / "rules" / "surge" / "generated",
 ]
 
 

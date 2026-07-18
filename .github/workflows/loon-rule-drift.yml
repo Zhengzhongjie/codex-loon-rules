@@ -34,6 +34,9 @@ jobs:
       - name: Validate Shadowrocket config skeletons
         run: python3 tools/validate_shadowrocket_config.py
 
+      - name: Validate Surge config skeletons
+        run: python3 tools/validate_surge_config.py
+
       - name: Audit public artifacts
         run: python3 tools/audit_public_artifacts.py .
 

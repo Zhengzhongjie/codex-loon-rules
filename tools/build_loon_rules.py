@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from rulegrammar import LOON, SHADOWROCKET, CoverageIndex, Rule, fold, parse_rule, render_rule
+from rulegrammar import LOON, SHADOWROCKET, SURGE, CoverageIndex, Rule, fold, parse_rule, render_rule
 
 
 USER_AGENT = "loon-rules-personal-builder/1.0"
@@ -504,7 +504,11 @@ class Dialect:
 
 LOON_DIALECT = Dialect(LOON, "loon", "# Generated Loon rules manifest")
 SHADOWROCKET_DIALECT = Dialect(SHADOWROCKET, "shadowrocket", "# Generated Shadowrocket rules manifest")
-DIALECTS: tuple[Dialect, ...] = (LOON_DIALECT, SHADOWROCKET_DIALECT)
+# Surge keeps canonical IP-CIDR6 (identity fold), so its .list bodies match the Loon tree; only the
+# manifest title and path prefix differ. It gets its own tree so the config's RULE-SET URLs live in a
+# reserved surge/ namespace and can evolve independently (per docs/adr/0002).
+SURGE_DIALECT = Dialect(SURGE, "surge", "# Generated Surge rules manifest")
+DIALECTS: tuple[Dialect, ...] = (LOON_DIALECT, SHADOWROCKET_DIALECT, SURGE_DIALECT)
 
 
 def render_tree(compiled: dict[str, list[Rule]], rulesets: list[RuleSet], dialect: Dialect) -> dict[str, str]:

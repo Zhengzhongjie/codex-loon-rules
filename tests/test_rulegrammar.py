@@ -109,3 +109,13 @@ def test_fold_shadowrocket_leaves_other_types_untouched():
         rg.Rule("DOMAIN-SUFFIX", "example.com", ()),
     ):
         assert rg.fold(rule, rg.SHADOWROCKET) == rule
+
+
+def test_fold_surge_is_identity():
+    # Surge is the reference implementation and keeps canonical IP-CIDR6, so its fold is the identity.
+    for rule in (
+        rg.Rule("IP-CIDR6", "2001:db8::/32", ("no-resolve",)),
+        rg.Rule("IP-CIDR", "1.2.3.0/24", ("no-resolve",)),
+        rg.Rule("DOMAIN-SUFFIX", "example.com", ()),
+    ):
+        assert rg.fold(rule, rg.SURGE) == rule

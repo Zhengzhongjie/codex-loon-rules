@@ -29,6 +29,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DIALECT_DIRS = [
     REPO_ROOT / "rules" / "loon" / "generated",
     REPO_ROOT / "rules" / "shadowrocket" / "generated",
+    REPO_ROOT / "rules" / "surge" / "generated",
 ]
 REJECT_FILES = ("00-Ads-Reject.list", "27-Ads-Reject-Heavy.list")
 SERVICE_FILES = ("06-FinanceCrypto-Stable.list", "08-Claude.list", "08-AI.list")
