@@ -43,7 +43,7 @@ and script features run as authored.
 | Disney+.plugin | `https://raw.githubusercontent.com/VirgilClyne/GetSomeFries/main/sgmodule/Disney%2B.sgmodule` | Surge script params apply natively |
 | Netflix.beta.plugin | `https://raw.githubusercontent.com/VirgilClyne/GetSomeFries/main/sgmodule/Netflix.beta.sgmodule` | official same-source |
 | Sub-Store Loon.plugin | `https://raw.githubusercontent.com/sub-store-org/Sub-Store/master/config/Surge-Noability.sgmodule` | Surge flavor from the same repo |
-| MediaCheck.lpx | **restored as a Surge Panel** — install a streaming-unlock Panel module, e.g. [DualSubs/Universal](https://github.com/DualSubs) or a maintained `RegionRestrictionCheck` Surge Panel | Loon's MediaCheck was a **panel**; Shadowrocket dropped it (no panel concept), but Surge has Panels, so the diagnostic surface is restored via a Panel `.sgmodule`. Pick your preferred maintained panel and verify the URL on install. |
+| MediaCheck.lpx | **restored as a Surge Panel** — the module's upstream (Keywos) ships a Surge build: `https://kelee.one/Tool/Surge/Module/MediaCheck_Streaming-Media-Detection.sgmodule` | Loon's MediaCheck was a **panel**; Shadowrocket dropped it (no panel concept), but Surge has Panels, so the diagnostic surface is restored. The host is Cloudflare-gated, so it cannot be checked with curl — open the URL in a browser / install it in-app to verify. Any maintained streaming-unlock Panel `.sgmodule` works if you prefer another. |
 
 All 21 Loon plugins map onto Surge: the 20 that the Shadowrocket port carried keep their `.sgmodule`
 (three swap the SR `.srmodule` for the Surge-native `.sgmodule`), and MediaCheck — dropped on
