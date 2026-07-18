@@ -1,0 +1,90 @@
+version: '3'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 统一命令入口 (front-door) — 5 层栈 · 记忆中枢 · 本 repo ops
+#
+#   一个大脑 Ruflo · 一个座舱 Orca · 一个指挥 Claude · 多只手 Codex · 一层边缘 Hermes
+#
+# 安装:  brew install go-task
+# 用法:  task            # 列出全部
+#        task status     # 一眼看全栈健康
+#        task mem:search -- "关键词"
+#
+# 设计原则: 一件事，一个 owner。命令按"谁负责"分组，消除多系统抢同一件事的协调税。
+# 记忆中枢是 Obsidian /brain vault (basic-memory 索引 + launchd 每 6h 桥接)，
+# 是唯一事实源 (single source of truth) — Claude/Ruflo 记忆都桥接进它。
+# ─────────────────────────────────────────────────────────────────────────────
+
+vars:
+  BRAIN: '{{.HOME}}/brain'
+
+tasks:
+  default:
+    desc: 列出所有可用命令
+    cmds: [task --list]
+    silent: true
+
+  # ── 全栈状态 ──────────────────────────────────────────────────────────────
+  status:
+    desc: 一眼看全栈健康 (ruflo / daemon / 记忆桥接 / orca)
+    silent: true
+    cmds:
+      - 'echo "▶ Ruflo:";        ruflo status 2>/dev/null | head -3'
+      - 'echo "▶ Daemon:";       ruflo daemon status --all 2>/dev/null | grep -E "PID|running" || echo "  stopped (省 token)"'
+      - 'echo "▶ 记忆桥接:";     launchctl list 2>/dev/null | grep memory-bridge || echo "  launchd 未加载"'
+      - 'echo "▶ 记忆同步:";     bm status 2>/dev/null | head -4'
+      - 'echo "▶ Orca worktree:"; orca worktree list 2>/dev/null | head -6 || echo "  none"'
+
+  # ── Ruflo 大脑: 协调 / 路由 / 定时 sweep ───────────────────────────────────
+  # daemon 会跑定时 worker (每个起一个 headless claude), 持续烧 token。按需开。
+  daemon:start:
+    desc: 启动 ruflo daemon (⚠ 持续烧 token, 12h 自停)
+    cmds: [ruflo daemon start]
+  daemon:stop:
+    desc: 停止 ruflo daemon (省 token)
+    cmds: [ruflo daemon stop]
+  route:
+    desc: 'ruflo 判断任务派给谁 — task route -- "任务描述"'
+    cmds: ['ruflo hooks route --task "{{.CLI_ARGS}}"']
+  worker:
+    desc: '手动触发一次 sweep — task worker -- audit  (audit|testgaps|map|optimize|document)'
+    cmds: ['ruflo hooks worker dispatch --trigger {{.CLI_ARGS}}']
+
+  # ── 记忆中枢: Obsidian /brain (唯一事实源) ────────────────────────────────
+  mem:search:
+    desc: '语义搜记忆中枢 — task mem:search -- "关键词"'
+    cmds: ['bm tool search-notes --query "{{.CLI_ARGS}}"']
+  mem:recent:
+    desc: 看最近写入的记忆
+    cmds: ['bm tool recent-activity --timeframe 7d']
+  mem:refresh:
+    desc: 强制跑一次 bridge 同步 (Claude/Ruflo → brain)
+    cmds: ['bash {{.BRAIN}}/bridge/scheduled-refresh.sh']
+  mem:status:
+    desc: 记忆同步状态 + 一致性检查 (doctor)
+    cmds:
+      - bm status
+      - bm doctor
+  mem:open:
+    desc: 在 Obsidian 打开记忆中枢
+    cmds: ['open "obsidian://open?vault=brain"']
+
+  # ── 本 repo (loon-rules-personal) ops ─────────────────────────────────────
+  test:
+    desc: 跑本 repo 测试套件
+    cmds: ['python3 -m pytest tests/ -q']
+  audit:
+    desc: 泄漏审计 — 扫公开产物 (配合 pre-commit 防线)
+    cmds: ['python3 tools/audit_public_artifacts.py']
+  precommit:
+    desc: 手动跑 pre-commit 钩子
+    cmds: ['bash githooks/pre-commit']
+  check:
+    desc: 提交前全检 (audit + test)
+    cmds:
+      - task: audit
+      - task: test
+
+  # ── 并行执行: Codex 进 Orca 隔离 worktree ─────────────────────────────────
+  # 扇出脚本在 AI 父 repo:  node scripts/fanout.mjs <spec.json>
+  # 逐 issue 路由: 复杂/架构 → Claude /implement;  一批同构 → fanout.mjs
