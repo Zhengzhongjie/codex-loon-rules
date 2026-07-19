@@ -9,15 +9,20 @@ Personal Loon routing notes, supplemental rule lists, and validation tooling.
 - `docs/security-posture.md`: public/private boundary and account-risk posture.
 - `rules/loon/generated/`: generated, deduplicated public Loon rule subscriptions.
 - `rules/shadowrocket/generated/`: the same rule lists in the Shadowrocket dialect — identical matches, with IPv6 `IP-CIDR6` folded into Shadowrocket's dual-stack `IP-CIDR`.
+- `rules/surge/generated/`: the same rule lists in the Surge dialect — Surge keeps canonical `IP-CIDR6` (identity fold), so the `.list` bodies match the Loon tree; only the manifest title and path prefix differ.
 - `rules/<dialect>/generated/MANIFEST.csv`: generated tag, policy, file, and rule-count manifest per dialect.
 - `configs/shadowrocket/`: generated Shadowrocket config skeletons (`iphone.conf`, `mac.conf`) — full-shape `.conf` with `{{PLACEHOLDER}}` private values, filled during iCloud assembly.
+- `configs/surge/`: generated Surge config skeletons (`ios.conf` for iPhone & iPad, `mac.conf` for Surge Mac with LAN sharing + HTTP API) — same placeholder model.
 - `docs/shadowrocket-modules.md`: Loon plugin → Shadowrocket module map (installed in-app, not embedded in the `.conf`).
+- `docs/surge-modules.md`: Loon plugin → Surge module map (`.sgmodule`, full fidelity, MediaCheck restored as a Panel; installed in-app).
 - `tools/build_loon_rules.py`: compiles rules once from reviewed upstream sources plus local supplements, then renders every dialect tree.
 - `tools/build_shadowrocket_config.py`: renders the Shadowrocket config skeletons from the shared RULESETS catalogue plus a committed sanitized spec.
+- `tools/build_surge_config.py`: renders the Surge config skeletons from the shared RULESETS catalogue plus a committed sanitized spec.
 - `tools/check_loon_rule_drift.py`: rebuilds every dialect's generated rules in memory and reports upstream drift.
 - `tools/validate_loon_config.py`: invariant checks for the local Loon configuration.
 - `tools/validate_shadowrocket_config.py`: dual-mode checks for the Shadowrocket config — committed skeletons (CI) or a filled private `.conf` (local).
-- `tools/validate_generated.py`: shared, dialect-neutral validator for a generated rule tree (manifest order, dedup, coverage); used by both config validators.
+- `tools/validate_surge_config.py`: dual-mode checks for the Surge config — committed skeletons (CI) or a filled private `.conf` (local).
+- `tools/validate_generated.py`: shared, dialect-neutral validator for a generated rule tree (manifest order, dedup, coverage); used by every config validator.
 - `tools/rulegrammar.py`: shared rule-line grammar (parse, render, per-dialect fold, suffix-coverage index) used by the builder and the validators.
 - `tools/audit_public_artifacts.py`: checks that public repo files do not include obvious secrets, with a placeholder-aware model for config skeletons.
 - `tests/`: pytest unit tests for the rule compiler, shared grammar, generated-tree validator, both config validators, the Shadowrocket config generator, and the audit.
@@ -44,6 +49,7 @@ Run the validator against the target Loon config:
 python3 tools/validate_loon_config.py "/Users/alessiozheng/Library/Mobile Documents/iCloud~com~ruikq~decar/Documents/Configs/loon rules for iphone & ipad.lcf"
 python3 tools/validate_loon_config.py "/Users/alessiozheng/Library/Mobile Documents/iCloud~com~ruikq~decar/Documents/Configs/loon rules for mac.lcf"
 python3 tools/validate_shadowrocket_config.py   # CI mode: committed skeletons + Shadowrocket rule tree
+python3 tools/validate_surge_config.py          # CI mode: committed skeletons + Surge rule tree
 python3 tools/audit_public_artifacts.py .
 HTTP_PROXY=http://127.0.0.1:7222 HTTPS_PROXY=http://127.0.0.1:7222 NO_PROXY=localhost,127.0.0.1,::1 python3 tools/build_loon_rules.py --strict
 HTTP_PROXY=http://127.0.0.1:7222 HTTPS_PROXY=http://127.0.0.1:7222 NO_PROXY=localhost,127.0.0.1,::1 python3 tools/check_loon_rule_drift.py

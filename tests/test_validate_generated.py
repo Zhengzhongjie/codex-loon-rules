@@ -44,6 +44,10 @@ def test_committed_shadowrocket_tree_is_valid():
     assert vg.validate_generated_tree(REPO_ROOT / "rules" / "shadowrocket" / "generated") == []
 
 
+def test_committed_surge_tree_is_valid():
+    assert vg.validate_generated_tree(REPO_ROOT / "rules" / "surge" / "generated") == []
+
+
 def test_manifest_entries_reads_tag_policy_filename():
     entries = vg.manifest_entries(REPO_ROOT / "rules" / "loon" / "generated")
     assert [tag for tag, _p, _f in entries] == vg.RULESET_ORDER

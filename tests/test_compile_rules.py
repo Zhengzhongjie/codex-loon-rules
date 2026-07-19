@@ -181,6 +181,23 @@ def test_shadowrocket_dialect_folds_ipv6_and_repaths_manifest():
     assert "A,POLA,rules/shadowrocket/generated/a.list,3" in manifest
 
 
+def test_surge_dialect_keeps_ipv6_and_matches_loon_body():
+    rulesets = [blr.RuleSet("a.list", "A", "POLA", sources=("urlA",))]
+    contents = {"urlA": "IP-CIDR6,2001:db8::/32\nIP-CIDR,1.2.3.0/24\nDOMAIN,keep.com\n"}
+    compiled = blr.compile_rules(rulesets, contents).compiled
+
+    loon = blr.render_tree(compiled, rulesets, blr.LOON_DIALECT)["a.list"]
+    surge = blr.render_tree(compiled, rulesets, blr.SURGE_DIALECT)["a.list"]
+
+    # Surge's fold is the identity, so its .list body is byte-identical to Loon's.
+    assert surge == loon
+    assert "IP-CIDR6,2001:db8::/32" in surge
+
+    manifest = blr.render_tree(compiled, rulesets, blr.SURGE_DIALECT)["MANIFEST.csv"]
+    assert manifest.splitlines()[0] == "# Generated Surge rules manifest"
+    assert "A,POLA,rules/surge/generated/a.list,3" in manifest
+
+
 def test_write_result_replaces_artefacts(tmp_path):
     (tmp_path / "stale.list").write_text("old\n")
     (tmp_path / "MANIFEST.csv").write_text("old manifest\n")

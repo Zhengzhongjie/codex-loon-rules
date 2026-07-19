@@ -54,16 +54,18 @@ def render_rule(rule: Rule) -> str:
 
 LOON = "loon"
 SHADOWROCKET = "shadowrocket"
+SURGE = "surge"
 
 
 def fold(rule: Rule, dialect: str) -> Rule:
     """Normalize a canonical rule into a dialect's rule vocabulary.
 
-    Both dialects share one text grammar and differ in exactly one rule type: Loon keeps the
-    separate ``IP-CIDR6`` type for IPv6, while Shadowrocket's ``IP-CIDR`` is dual-stack, so IPv6
-    CIDRs fold into it. Applied at render time, downstream of all dedup, so both dialect trees
-    keep identical row counts — the v4 and v6 value spaces are disjoint, so the fold never merges
-    two rows into one. Loon is the identity; any unhandled dialect passes through unchanged.
+    The dialects share one text grammar and differ in exactly one rule type: IPv6 CIDRs. Loon and
+    Surge keep the separate ``IP-CIDR6`` type (Surge is the reference implementation that syntax was
+    copied from), while Shadowrocket's ``IP-CIDR`` is dual-stack, so IPv6 CIDRs fold into it.
+    Applied at render time, downstream of all dedup, so all dialect trees keep identical row counts —
+    the v4 and v6 value spaces are disjoint, so the fold never merges two rows into one. Loon and
+    Surge are the identity; any unhandled dialect passes through unchanged.
     """
     if dialect == SHADOWROCKET and rule.rule_type == "IP-CIDR6":
         return Rule("IP-CIDR", rule.value, rule.modifiers)

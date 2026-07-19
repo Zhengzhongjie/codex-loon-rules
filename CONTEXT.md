@@ -15,8 +15,9 @@ _Avoid_: ruleset file, filter, subscription.
 
 **Dialect**:
 A client-specific rendering of the same rule data — identical matches, client-appropriate keywords
-(IPv6 CIDRs are `IP-CIDR6` in the Loon dialect, folded into dual-stack `IP-CIDR` in the Shadowrocket
-dialect). One source, one generated tree per dialect.
+(IPv6 CIDRs are `IP-CIDR6` in the Loon and Surge dialects, folded into dual-stack `IP-CIDR` in the
+Shadowrocket dialect; Surge is the reference implementation the type was copied from, so its fold is
+the identity). One source, one generated tree per dialect (`loon`, `shadowrocket`, `surge`).
 _Avoid_: format, flavor, variant.
 
 **Policy**:
@@ -53,10 +54,11 @@ Loon's enhancement bundle (`.plugin`) — MITM hostnames, header rewrites, and s
 embed private data, so it lives in the private config layer, not the public repo.
 
 **Module**:
-Shadowrocket's equivalent bundle. Usually a Surge-format `.sgmodule` that Shadowrocket imports;
-some upstreams also ship a Shadowrocket-native build (`.srmodule` / `.module`), which is preferred
-when it exists. The Shadowrocket port maps each Loon plugin to a module. Same role as a plugin,
-different file format.
+Shadowrocket's and Surge's equivalent bundle. The Surge-native format is `.sgmodule`; Shadowrocket
+imports the same `.sgmodule` but some upstreams also ship a Shadowrocket-native `.srmodule` / `.module`
+(preferred for the Shadowrocket port when it exists). The Surge port prefers the `.sgmodule` and loses
+none of the Surge-only directives Shadowrocket ignores. Each port maps every Loon plugin to a module.
+Same role as a plugin, different file format.
 _Avoid_: plugin (that's Loon's word).
 
 ### Public / private boundary
@@ -68,10 +70,10 @@ A config skeleton may legitimately carry private-section headers (`[Proxy]`, `[M
 values; a header alone is not a leak, only a real value is (see [[docs/adr/0004]]).
 
 **Config skeleton**:
-A committed, placeholder-bearing config or module the public repo generates — a Shadowrocket-side
-artifact only. The real private `.conf` is assembled outside the repo, in iCloud, by filling the
-skeleton with private nodes/certs/MITM data. Loon deliberately has no skeleton: its `.lcf` is
-maintained directly in iCloud and the repo only validates it.
+A committed, placeholder-bearing config the public repo generates — a Shadowrocket- and Surge-side
+artifact. The real private `.conf` is assembled outside the repo, in iCloud, by filling the skeleton
+with private nodes/certs/MITM data (and, for Surge Mac, the HTTP-API key). Loon deliberately has no
+skeleton: its `.lcf` is maintained directly in iCloud and the repo only validates it.
 _Avoid_: template (too generic), config.
 
 **Placeholder**:
@@ -90,6 +92,7 @@ _Avoid_: backup (bare — ambiguous with generated-artifact copies), archive.
 
 **Device delta**:
 The small, explicitly enumerated set of entries by which the mac variant of a config legitimately
-differs from the iphone & ipad variant (home-access node, iPhone-only enhancement bundle, MITM
-hostname). Any difference outside the delta is skeleton drift.
+differs from the iphone/ipad (iOS) variant: home-access node and MITM hostname (iOS-only), and — in
+the Surge port — Mac-only `[General]` keys (LAN proxy sharing + HTTP API). Any difference outside the
+delta is skeleton drift.
 _Avoid_: fork, per-device divergence.
