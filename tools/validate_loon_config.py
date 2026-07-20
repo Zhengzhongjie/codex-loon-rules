@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from ipaddress import ip_network
 from pathlib import Path
 
@@ -78,6 +78,7 @@ class LoonConfig:
     rule_lines: list[str]
     remote_rules: list[RemoteRule]
     plugin_lines: list[str]
+    proxy_lines: list[str] = field(default_factory=list)
 
 
 def _first(pattern: str, line: str) -> str | None:
@@ -101,6 +102,7 @@ def parse_loon_config(text: str) -> LoonConfig:
         rule_lines=active_lines(sections.get("Rule", [])),
         remote_rules=[parse_remote_rule(line) for line in active_lines(sections.get("Remote Rule", []))],
         plugin_lines=active_lines(sections.get("Plugin", [])),
+        proxy_lines=active_lines(sections.get("Proxy", [])),
     )
 
 
@@ -238,6 +240,36 @@ def check_plugins(cfg: LoonConfig) -> list[str]:
     return errors
 
 
+# WireGuard node values that carry base64 padding ('=') or '/'/'+' (keys) or a CIDR
+# slash (allowed-ips) collide with Loon's '=' (key/value) and ',' (field) delimiters.
+# Loon only parses them when double-quoted; an unquoted value silently corrupts the
+# whole [Proxy] line and Loon reports a syntax error. This has bitten the live
+# Home-Orca-WG node repeatedly — gate it. See memory: loon-wireguard-quote-base64.
+WG_QUOTED_FIELDS = ("private-key", "public-key", "preshared-key", "allowed-ips")
+
+
+def check_proxy_wireguard(cfg: LoonConfig) -> list[str]:
+    errors: list[str] = []
+    for line in cfg.proxy_lines:
+        name, sep, body = line.partition("=")
+        # Only WireGuard nodes need the quoting guard; a '{{...}}' template placeholder
+        # (committed config) has no literal keys, so it is correctly skipped here.
+        if not sep or body.strip().split(",", 1)[0].strip() != "wireguard":
+            continue
+        name = name.strip()
+        for field_name in WG_QUOTED_FIELDS:
+            match = re.search(rf"(?<![\w-]){re.escape(field_name)}\s*=\s*([^,}}\]]+)", line)
+            if not match:
+                continue
+            value = match.group(1).strip()
+            if not (len(value) >= 2 and value.startswith('"') and value.endswith('"')):
+                errors.append(
+                    f"[Proxy] WireGuard node '{name}': {field_name} must be double-quoted "
+                    "(base64/CIDR values collide with Loon's '=' and ',' delimiters)"
+                )
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("config", type=Path)
@@ -250,6 +282,7 @@ def main() -> int:
     errors += check_required_sections(cfg)
     errors += check_general(cfg)
     errors += check_rule_section(cfg)
+    errors += check_proxy_wireguard(cfg)
     errors += check_policy_groups(cfg)
     errors += check_remote_tags(cfg)
     errors += check_remote_urls(cfg)

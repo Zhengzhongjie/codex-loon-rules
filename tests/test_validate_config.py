@@ -145,3 +145,44 @@ def test_check_plugins_high_risk_marker():
     assert any("account-risk plugin should be disabled" in e for e in v.check_plugins(mk(plugin_lines=enabled)))
     disabled = ["https://host/BiliBili.ADBlock.plugin, enabled=false"]
     assert not any("account-risk plugin should be disabled" in e for e in v.check_plugins(mk(plugin_lines=disabled)))
+
+
+# A WireGuard node whose base64 keys carry '/' and '=' padding — the exact shape that
+# breaks Loon's delimiter parser when the values are left unquoted.
+_WG_UNQUOTED = (
+    "Home-Orca-WG = wireguard, interface-ip = 198.18.0.2, "
+    "private-key = FAKEprivateKEY0000000000000000000000000/+A0=, mtu = 1420, keepalive = 25, "
+    "peers = [{public-key = FAKEpublicKEY00000000000000000000000000/+B0=, "
+    'allowed-ips = "198.18.0.0/24", endpoint = 209.200.235.119:51820, '
+    "preshared-key = FAKEpresharedKEY0000000000000000000000/+C00=}]"
+)
+_WG_QUOTED = (
+    'Home-Orca-WG = wireguard,interface-ip=198.18.0.2,'
+    'private-key="FAKEprivateKEY0000000000000000000000000/+A0=",mtu=1420,keepalive=25,'
+    'peers=[{public-key="FAKEpublicKEY00000000000000000000000000/+B0=",'
+    'allowed-ips="198.18.0.0/24",endpoint=209.200.235.119:51820,'
+    'preshared-key="FAKEpresharedKEY0000000000000000000000/+C00="}]'
+)
+
+
+def test_parse_loon_config_extracts_proxy_lines():
+    cfg = v.parse_loon_config("[Proxy]\n" + _WG_QUOTED + "\n")
+    assert cfg.proxy_lines == [_WG_QUOTED]
+
+
+def test_check_proxy_wireguard_flags_every_unquoted_key():
+    errors = v.check_proxy_wireguard(mk(proxy_lines=[_WG_UNQUOTED]))
+    # all three base64 keys are unquoted; allowed-ips is already quoted, so 3 hits
+    assert len(errors) == 3
+    assert all("Home-Orca-WG" in e and "must be double-quoted" in e for e in errors)
+    assert {"private-key", "public-key", "preshared-key"} == {e.split(":")[1].split("must")[0].strip() for e in errors}
+
+
+def test_check_proxy_wireguard_passes_when_quoted():
+    assert v.check_proxy_wireguard(mk(proxy_lines=[_WG_QUOTED])) == []
+
+
+def test_check_proxy_wireguard_ignores_non_wireguard_and_templates():
+    other = "US-01 = trojan, host.example.com, 443, password=secret"
+    template = "Home-Orca-WG = {{HOME_WG_NODE}}"
+    assert v.check_proxy_wireguard(mk(proxy_lines=[other, template])) == []
