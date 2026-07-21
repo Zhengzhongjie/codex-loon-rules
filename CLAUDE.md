@@ -12,6 +12,13 @@
 - Keep files under 500 lines
 - Validate input at system boundaries
 
+## HARD RULE — WireGuard node lines (recurred 4×, do not regenerate)
+
+- NEVER regenerate or "pretty-print" the `Home-Orca-WG` (or any Loon WireGuard) proxy line from scratch. Copy it VERBATIM from the canonical snapshot: `.backups-loon-lcf/home-orca-wg.loon1-node.*.txt` (gitignored, contains real keys).
+- Loon is NOT TOML. `private-key`, `public-key`, `preshared-key`, `allowed-ips` MUST stay double-quoted — base64 `=`/`+`/`/` and CIDR `/` collide with Loon's `=` and `,` delimiters. No spaces around `=` or after `,` (compact format only).
+- Before handing any WireGuard line to the user or writing it anywhere, run `python3 tools/validate_loon_config.py` (or `check_proxy_wireguard` directly) and require OK.
+- Target device is iPhone **Loon1** only. Never round-trip the line through Loon2 — it strips the quotes.
+
 ## Agent Comms (SendMessage-First Coordination)
 
 Named agents coordinate via `SendMessage`, not polling or shared state.
