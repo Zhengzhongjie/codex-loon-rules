@@ -52,7 +52,7 @@ PROXY_FIRST = [
     "YouTube", "Google", "GitHub", "境外流媒体", "Microsoft", "Meta", "Telegram", "TikTok",
 ]
 # China-friendly services that prefer DIRECT first.
-DIRECT_FIRST = ["Seetong", "Apple", "Bilibili", "RedNote", "抖音", "Weibo"]
+DIRECT_FIRST = ["Seetong", "TradingView", "Apple", "Bilibili", "RedNote", "抖音", "Weibo"]
 
 
 def service_group(name: str, direct_first: bool) -> str:

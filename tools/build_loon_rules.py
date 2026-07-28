@@ -129,6 +129,20 @@ RULESETS: list[RuleSet] = [
         notes=("Keep PayPal separate from finance/crypto for stable egress.",),
     ),
     RuleSet(
+        "05-TradingView-Fast.list",
+        "TradingView-Fast",
+        "TradingView",
+        additions=(
+            "DOMAIN-SUFFIX,tradingview.com",
+            "DOMAIN-SUFFIX,tradingviewstatic.com",
+            "DOMAIN-SUFFIX,tradingview-widget.com",
+        ),
+        notes=(
+            "TradingView pulled out of FinanceCrypto so cn.tradingview.com can go DIRECT.",
+            "Policy group defaults to DIRECT; switch to a nearby node if chart data websockets stall.",
+        ),
+    ),
+    RuleSet(
         "06-FinanceCrypto-Stable.list",
         "FinanceCrypto-Stable",
         "金融加密",
