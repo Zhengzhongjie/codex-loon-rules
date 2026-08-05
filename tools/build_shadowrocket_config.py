@@ -48,7 +48,7 @@ CHAIN_GROUPS = [
 
 # Service groups that route through the chain first (proxy-leaning), then DIRECT, then the regions.
 PROXY_FIRST = [
-    "Adobe", "AI", "PayPal", "金融加密", "Amazon", "X", "开发协作", "海外社交资讯",
+    "Adobe", "AI", "PayPal", "Binance", "金融加密", "Amazon", "X", "开发协作", "海外社交资讯",
     "YouTube", "Google", "GitHub", "境外流媒体", "Microsoft", "Meta", "Telegram", "TikTok",
 ]
 # China-friendly services that prefer DIRECT first.

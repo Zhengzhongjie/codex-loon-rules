@@ -12,6 +12,7 @@ This config keeps two layers:
 - `Adobe`: `DIRECT` first unless Adobe account or regional access requires proxy.
 - `Apple`: `DIRECT` first, then proxy choices.
 - `Claude`: use one stable supported-region group only (`美国节点`, `狮城节点`, `日本节点`, `台湾节点`, `韩国节点`, or `英国节点`). Do not offer `DIRECT`, Hong Kong, Macao, unknown-region, or multi-region chain choices.
+- `Binance`: one stable **non-US, non-UK** node only (`日本节点`, `狮城节点`, `香港节点`, `台湾节点`, `韩国节点`). `api.binance.com` answers HTTP 451 "Service unavailable from a restricted location" on US/UK egress. Do not put `DIRECT` first, and do not region-hop — exchange risk control dislikes it.
 - `AI`, `Google`, `YouTube`, `Telegram`, `TikTok`, `Microsoft`, `Meta`, `GitHub`, `金融加密`, `Amazon`, `开发协作`, `海外社交资讯`, `境外流媒体`: proxy first, then `DIRECT`.
 - `RedNote`, `抖音`, `Bilibili`, `Weibo`: `DIRECT` first, then proxy choices.
 
@@ -25,29 +26,31 @@ Use this order in `[Remote Rule]`:
 4. `Mainland-Services-Direct`
 5. `Seetong-Local`
 6. `PayPal-Stable`
-7. `FinanceCrypto-Stable`
-8. `Adobe`
-9. `Claude`
-10. `AI`
-11. `Apple`
-12. `RedNote`
-13. `Weibo`
-14. `TikTok`
-15. `Douyin-ByteDance`
-16. `Bilibili`
-17. `Telegram`
-18. `Microsoft`
-19. `Meta`
-20. `YouTube`
-21. `Google`
-22. `GitHub`
-23. `Developer-Collab`
-24. `Global-Social-Info`
-25. `Streaming`
-26. `Amazon`
-27. `Talkatone`
-28. `ChinaASN-Direct`
-29. `FINAL,全局代理`
+7. `TradingView-Fast`
+8. `Binance-Geo`
+9. `FinanceCrypto-Stable`
+10. `Adobe`
+11. `Claude`
+12. `AI`
+13. `Apple`
+14. `RedNote`
+15. `Weibo`
+16. `TikTok`
+17. `Douyin-ByteDance`
+18. `Bilibili`
+19. `Telegram`
+20. `Microsoft`
+21. `Meta`
+22. `YouTube`
+23. `Google`
+24. `GitHub`
+25. `Developer-Collab`
+26. `Global-Social-Info`
+27. `Streaming`
+28. `Amazon`
+29. `Talkatone`
+30. `ChinaASN-Direct`
+31. `FINAL,全局代理`
 
 ## Conflict decisions
 

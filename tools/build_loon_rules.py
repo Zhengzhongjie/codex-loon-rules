@@ -83,6 +83,11 @@ RULESETS: list[RuleSet] = [
         "LAN-Direct",
         "DIRECT",
         ("https://raw.githubusercontent.com/fmz200/wool_scripts/main/Loon/rule/LAN.list",),
+        additions=(
+            "DOMAIN-SUFFIX,local",
+            "IP-CIDR,169.254.0.0/16,no-resolve",
+            "IP-CIDR,224.0.0.0/4,no-resolve",
+        ),
         notes=("LAN and private network direct rules.",),
     ),
     RuleSet(
@@ -143,10 +148,28 @@ RULESETS: list[RuleSet] = [
         ),
     ),
     RuleSet(
+        "05-Binance-Geo.list",
+        "Binance-Geo",
+        "Binance",
+        (blackmatrix("Binance"),),
+        additions=(
+            "DOMAIN-SUFFIX,binance.vision",
+            "DOMAIN-SUFFIX,binance.info",
+        ),
+        notes=(
+            "Binance pulled out of FinanceCrypto: api.binance.com answers HTTP 451",
+            "'Service unavailable from a restricted location' on US/UK egress.",
+            "OKX stays in FinanceCrypto so its egress IP is untouched (exchange risk control).",
+            "Policy group must sit on ONE stable non-US, non-UK node (JP/SG/HK).",
+            "binance.us intentionally NOT here — it needs US egress and stays in FinanceCrypto.",
+            "binance.vision is the public data mirror that stays reachable when api.binance.com 451s.",
+        ),
+    ),
+    RuleSet(
         "06-FinanceCrypto-Stable.list",
         "FinanceCrypto-Stable",
         "金融加密",
-        tuple(blackmatrix(name) for name in ("Stripe", "Binance", "OKX", "Crypto", "Bloomberg")),
+        tuple(blackmatrix(name) for name in ("Stripe", "OKX", "Crypto", "Bloomberg")),
         additions=(
             "DOMAIN-SUFFIX,stripecdn.com",
             "DOMAIN-SUFFIX,binance.us",

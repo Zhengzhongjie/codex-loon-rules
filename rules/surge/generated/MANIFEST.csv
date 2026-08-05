@@ -2,13 +2,14 @@
 # Do not include proxy nodes, subscriptions, certificates, or secrets.
 
 Ads-Reject,广告分流,rules/surge/generated/00-Ads-Reject.list,2935
-LAN-Direct,DIRECT,rules/surge/generated/01-LAN-Direct.list,9
+LAN-Direct,DIRECT,rules/surge/generated/01-LAN-Direct.list,12
 AccountSafety-DIRECT,DIRECT,rules/surge/generated/02-AccountSafety-Direct.list,12
 Mainland-Services-Direct,DIRECT,rules/surge/generated/03-Mainland-Services-Direct.list,491
 Seetong-Local,Seetong,rules/surge/generated/04-Seetong.list,2
 PayPal-Stable,PayPal,rules/surge/generated/05-PayPal-Stable.list,247
 TradingView-Fast,TradingView,rules/surge/generated/05-TradingView-Fast.list,3
-FinanceCrypto-Stable,金融加密,rules/surge/generated/06-FinanceCrypto-Stable.list,242
+Binance-Geo,Binance,rules/surge/generated/05-Binance-Geo.list,14
+FinanceCrypto-Stable,金融加密,rules/surge/generated/06-FinanceCrypto-Stable.list,230
 Adobe,Adobe,rules/surge/generated/07-Adobe.list,181
 Claude,Claude,rules/surge/generated/08-Claude.list,6
 AI,AI,rules/surge/generated/08-AI.list,121
@@ -30,4 +31,4 @@ Streaming,境外流媒体,rules/surge/generated/23-Streaming.list,1671
 Amazon,Amazon,rules/surge/generated/24-Amazon.list,187
 Talkatone,全局代理,rules/surge/generated/25-Talkatone.list,6
 ChinaASN-Direct,DIRECT,rules/surge/generated/26-ChinaASN-Direct.list,5075
-Ads-Reject-Heavy,广告分流,rules/surge/generated/27-Ads-Reject-Heavy.list,176247
+Ads-Reject-Heavy,广告分流,rules/surge/generated/27-Ads-Reject-Heavy.list,178353
