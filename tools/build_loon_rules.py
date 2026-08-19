@@ -174,6 +174,7 @@ RULESETS: list[RuleSet] = [
             "DOMAIN-SUFFIX,stripecdn.com",
             "DOMAIN-SUFFIX,binance.us",
             "DOMAIN-SUFFIX,oklink.com",
+            "DOMAIN-SUFFIX,tealstreet.io",
             "DOMAIN-SUFFIX,safepal.com",
             "DOMAIN-SUFFIX,safepal.io",
             "DOMAIN-SUFFIX,coinbase.com",
